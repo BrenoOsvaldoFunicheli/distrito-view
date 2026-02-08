@@ -1,12 +1,10 @@
 export const ROLE_COLORS: Record<string, string> = {
-  "AI Engineer": "bg-purple-100 text-purple-800",
-  "Data Engineer": "bg-blue-100 text-blue-800",
-  "ML Engineer": "bg-indigo-100 text-indigo-800",
-  "Fullstack Dev": "bg-green-100 text-green-800",
-  "Backend Dev": "bg-teal-100 text-teal-800",
-  "Frontend Dev": "bg-cyan-100 text-cyan-800",
-  "DevOps Engineer": "bg-orange-100 text-orange-800",
-  "Tech Lead": "bg-red-100 text-red-800",
+  "Engenharia AI": "bg-purple-100 text-purple-800",
+  "Engenharia AI FC": "bg-violet-100 text-violet-800",
+  "Engenharia Dados": "bg-blue-100 text-blue-800",
+  "Engenharia Software": "bg-green-100 text-green-800",
+  "Engenharia Software FC": "bg-emerald-100 text-emerald-800",
+  "Arquiteto Solucoes": "bg-orange-100 text-orange-800",
 };
 
 export const STATUS_COLORS: Record<string, string> = {

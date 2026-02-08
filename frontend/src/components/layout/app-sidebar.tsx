@@ -8,6 +8,7 @@ import {
   Building2,
   FileText,
   Calendar,
+  GanttChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ const navItems = [
   { href: "/people", label: "Pessoas", icon: Users },
   { href: "/clients", label: "Clientes", icon: Building2 },
   { href: "/contracts", label: "Contratos", icon: FileText },
+  { href: "/projects", label: "Gantt Projetos", icon: GanttChart },
   { href: "/allocations", label: "Alocacoes", icon: Calendar },
 ];
 

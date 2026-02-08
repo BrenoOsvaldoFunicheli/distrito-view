@@ -14,14 +14,12 @@ from app.models.person_role import PersonRole
 from app.models.role import Role
 
 ROLES = [
-    ("AI Engineer", "Engenheiro especializado em Inteligencia Artificial"),
-    ("Data Engineer", "Engenheiro de Dados"),
-    ("ML Engineer", "Engenheiro de Machine Learning"),
-    ("Fullstack Dev", "Desenvolvedor Fullstack"),
-    ("Backend Dev", "Desenvolvedor Backend"),
-    ("Frontend Dev", "Desenvolvedor Frontend"),
-    ("DevOps Engineer", "Engenheiro DevOps"),
-    ("Tech Lead", "Lider Tecnico"),
+    ("Engenharia AI", "Engenheiro de AI (LLM ou ML)"),
+    ("Engenharia AI FC", "Engenheiro de AI Full Cycle (LLM ou ML)"),
+    ("Engenharia Dados", "Engenheiro de Dados"),
+    ("Engenharia Software", "Engenheiro de Software"),
+    ("Engenharia Software FC", "Engenheiro de Software Full Cycle"),
+    ("Arquiteto Solucoes", "Arquiteto de Solucoes"),
 ]
 
 CONTRACTS_DATA = [
@@ -366,21 +364,33 @@ CONTRACTS_DATA = [
 ]
 
 PEOPLE_DATA = [
-    {"name": "Ana Silva", "email": "ana.silva@distrito.me", "roles": ["AI Engineer"], "primary": "AI Engineer"},
-    {"name": "Bruno Costa", "email": "bruno.costa@distrito.me", "roles": ["AI Engineer", "ML Engineer"], "primary": "AI Engineer"},
-    {"name": "Carla Souza", "email": "carla.souza@distrito.me", "roles": ["Data Engineer"], "primary": "Data Engineer"},
-    {"name": "Daniel Oliveira", "email": "daniel.oliveira@distrito.me", "roles": ["Fullstack Dev"], "primary": "Fullstack Dev"},
-    {"name": "Eduardo Lima", "email": "eduardo.lima@distrito.me", "roles": ["AI Engineer"], "primary": "AI Engineer"},
-    {"name": "Fernanda Rocha", "email": "fernanda.rocha@distrito.me", "roles": ["ML Engineer", "AI Engineer"], "primary": "ML Engineer"},
-    {"name": "Gabriel Santos", "email": "gabriel.santos@distrito.me", "roles": ["Backend Dev", "Fullstack Dev"], "primary": "Backend Dev"},
-    {"name": "Helena Martins", "email": "helena.martins@distrito.me", "roles": ["Frontend Dev"], "primary": "Frontend Dev"},
-    {"name": "Igor Pereira", "email": "igor.pereira@distrito.me", "roles": ["DevOps Engineer"], "primary": "DevOps Engineer"},
-    {"name": "Julia Almeida", "email": "julia.almeida@distrito.me", "roles": ["AI Engineer", "Data Engineer"], "primary": "AI Engineer"},
-    {"name": "Lucas Barbosa", "email": "lucas.barbosa@distrito.me", "roles": ["Tech Lead", "Fullstack Dev"], "primary": "Tech Lead"},
-    {"name": "Mariana Ferreira", "email": "mariana.ferreira@distrito.me", "roles": ["Data Engineer", "ML Engineer"], "primary": "Data Engineer"},
-    {"name": "Nicolas Cardoso", "email": "nicolas.cardoso@distrito.me", "roles": ["AI Engineer"], "primary": "AI Engineer"},
-    {"name": "Patricia Gomes", "email": "patricia.gomes@distrito.me", "roles": ["Fullstack Dev", "Frontend Dev"], "primary": "Fullstack Dev"},
-    {"name": "Rafael Nunes", "email": "rafael.nunes@distrito.me", "roles": ["AI Engineer", "ML Engineer"], "primary": "AI Engineer"},
+    # Engenharia Dados (7)
+    {"name": "Everson Henrich", "email": "everson.henrich@distrito.me", "roles": ["Engenharia Dados"], "primary": "Engenharia Dados"},
+    {"name": "Priscila Franca", "email": "priscila.franca@distrito.me", "roles": ["Engenharia Dados"], "primary": "Engenharia Dados"},
+    {"name": "Joseandra Anger", "email": "joseandra.anger@distrito.me", "roles": ["Engenharia Dados"], "primary": "Engenharia Dados"},
+    {"name": "Viktor Oleksiuk", "email": "viktor.oleksiuk@distrito.me", "roles": ["Engenharia Dados"], "primary": "Engenharia Dados"},
+    {"name": "Patricia Miranda", "email": "patricia.miranda@distrito.me", "roles": ["Engenharia Dados"], "primary": "Engenharia Dados"},
+    {"name": "Rodrigo Cattoi", "email": "rodrigo.cattoi@distrito.me", "roles": ["Engenharia Dados"], "primary": "Engenharia Dados"},
+    {"name": "Ailan Paula Goncalves", "email": "ailan.goncalves@distrito.me", "roles": ["Engenharia Dados"], "primary": "Engenharia Dados"},
+    # Engenharia AI (9)
+    {"name": "Arthur Dorigueto", "email": "arthur.dorigueto@distrito.me", "roles": ["Engenharia AI"], "primary": "Engenharia AI"},
+    {"name": "Bianka Passos", "email": "bianka.passos@distrito.me", "roles": ["Engenharia AI"], "primary": "Engenharia AI"},
+    {"name": "Leo Vilela", "email": "leo.vilela@distrito.me", "roles": ["Engenharia AI"], "primary": "Engenharia AI"},
+    {"name": "Vanessa Santos", "email": "vanessa.santos@distrito.me", "roles": ["Engenharia AI"], "primary": "Engenharia AI"},
+    {"name": "Breno Funicheli", "email": "breno.funicheli@distrito.me", "roles": ["Engenharia AI"], "primary": "Engenharia AI"},
+    {"name": "Matheus Muniz", "email": "matheus.muniz@distrito.me", "roles": ["Engenharia AI"], "primary": "Engenharia AI"},
+    {"name": "Rafael Mayer", "email": "rafael.mayer@distrito.me", "roles": ["Engenharia AI"], "primary": "Engenharia AI"},
+    {"name": "Hudson Barroso", "email": "hudson.barroso@distrito.me", "roles": ["Engenharia AI"], "primary": "Engenharia AI"},
+    {"name": "Eduardo Anaxagoras", "email": "eduardo.anaxagoras@distrito.me", "roles": ["Engenharia AI"], "primary": "Engenharia AI"},
+    # Engenharia AI FC (2)
+    {"name": "Eraldo Barbosa", "email": "eraldo.barbosa@distrito.me", "roles": ["Engenharia AI FC"], "primary": "Engenharia AI FC"},
+    {"name": "Patrick Silva", "email": "patrick.silva@distrito.me", "roles": ["Engenharia AI FC"], "primary": "Engenharia AI FC"},
+    # Engenharia Software (1)
+    {"name": "Vitor Traut", "email": "vitor.traut@distrito.me", "roles": ["Engenharia Software"], "primary": "Engenharia Software"},
+    # Engenharia Software FC (1)
+    {"name": "Mateus Cardoso", "email": "mateus.cardoso@distrito.me", "roles": ["Engenharia Software FC"], "primary": "Engenharia Software FC"},
+    # Arquiteto Solucoes (1)
+    {"name": "Valdson Leme", "email": "valdson.leme@distrito.me", "roles": ["Arquiteto Solucoes"], "primary": "Arquiteto Solucoes"},
 ]
 
 
@@ -450,19 +460,19 @@ def seed_database():
                 # Squad plans typically need more people
                 cr1 = ContractRole(
                     contract_id=contract.id,
-                    role_id=role_map["AI Engineer"],
+                    role_id=role_map["Engenharia AI"],
                     allocation_percentage=100,
                     quantity=2,
                 )
                 cr2 = ContractRole(
                     contract_id=contract.id,
-                    role_id=role_map["Fullstack Dev"],
+                    role_id=role_map["Engenharia Software"],
                     allocation_percentage=100,
                     quantity=1,
                 )
                 cr3 = ContractRole(
                     contract_id=contract.id,
-                    role_id=role_map["Data Engineer"],
+                    role_id=role_map["Engenharia Dados"],
                     allocation_percentage=50,
                     quantity=1,
                 )
@@ -471,7 +481,7 @@ def seed_database():
                 # AI Factory / POC - smaller team
                 cr1 = ContractRole(
                     contract_id=contract.id,
-                    role_id=role_map["AI Engineer"],
+                    role_id=role_map["Engenharia AI"],
                     allocation_percentage=100,
                     quantity=1,
                 )
