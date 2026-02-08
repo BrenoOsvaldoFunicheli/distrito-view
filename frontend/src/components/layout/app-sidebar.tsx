@@ -1,0 +1,55 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  FileText,
+  Calendar,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/people", label: "Pessoas", icon: Users },
+  { href: "/clients", label: "Clientes", icon: Building2 },
+  { href: "/contracts", label: "Contratos", icon: FileText },
+  { href: "/allocations", label: "Alocacoes", icon: Calendar },
+];
+
+export function AppSidebar() {
+  const pathname = usePathname();
+
+  return (
+    <aside className="flex h-screen w-64 flex-col border-r bg-card">
+      <div className="flex h-16 items-center border-b px-6">
+        <h1 className="text-xl font-bold">Distrito</h1>
+      </div>
+      <nav className="flex-1 space-y-1 p-4">
+        {navItems.map((item) => {
+          const isActive =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}
