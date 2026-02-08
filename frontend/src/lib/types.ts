@@ -107,6 +107,23 @@ export interface UtilizationStats {
   average_utilization: number;
 }
 
+export interface AllocationSummaryEntry {
+  person_id: number;
+  person_name: string;
+  person_email: string;
+  roles: string[];
+  current_allocation_percentage: number;
+  allocations: {
+    allocation_id: number;
+    contract_name: string;
+    client_name: string;
+    role_name: string;
+    percentage: number;
+    start_date: string;
+    end_date: string;
+  }[];
+}
+
 export interface TimelineEntry {
   person_id: number;
   person_name: string;

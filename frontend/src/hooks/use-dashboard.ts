@@ -7,6 +7,7 @@ import type {
   UpcomingNeed,
   UtilizationStats,
   TimelineEntry,
+  AllocationSummaryEntry,
 } from "@/lib/types";
 
 export function useUnallocated(daysAhead = 30) {
@@ -26,6 +27,13 @@ export function useUpcomingNeeds(daysAhead = 60) {
 export function useUtilization() {
   return useSWR<{ data: UtilizationStats }>(
     "/api/v1/dashboard/utilization",
+    api.get,
+  );
+}
+
+export function useAllocationSummary() {
+  return useSWR<{ data: AllocationSummaryEntry[] }>(
+    "/api/v1/dashboard/allocation-summary",
     api.get,
   );
 }

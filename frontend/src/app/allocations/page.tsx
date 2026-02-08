@@ -60,12 +60,17 @@ export default function AllocationsPage() {
         title="Timeline de Alocacoes"
         description="Visualizacao completa de alocacoes por periodo"
         actions={
-          <Link href="/allocations/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Alocacao
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/allocations/people">
+              <Button variant="outline">Por Pessoa</Button>
+            </Link>
+            <Link href="/allocations/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Alocacao
+              </Button>
+            </Link>
+          </div>
         }
       />
 

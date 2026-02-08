@@ -9,6 +9,7 @@ import {
   FileText,
   Calendar,
   GanttChart,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +19,8 @@ const navItems = [
   { href: "/clients", label: "Clientes", icon: Building2 },
   { href: "/contracts", label: "Contratos", icon: FileText },
   { href: "/projects", label: "Gantt Projetos", icon: GanttChart },
-  { href: "/allocations", label: "Alocacoes", icon: Calendar },
+  { href: "/allocations/people", label: "Alocacao Pessoas", icon: UserCheck },
+  { href: "/allocations", label: "Timeline", icon: Calendar },
 ];
 
 export function AppSidebar() {
@@ -34,7 +36,9 @@ export function AppSidebar() {
           const isActive =
             item.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href);
+              : item.href === "/allocations"
+                ? pathname === "/allocations" || pathname === "/allocations/new"
+                : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
