@@ -5,6 +5,9 @@ export const ROLE_COLORS: Record<string, string> = {
   "Engenharia Software": "bg-green-100 text-green-800",
   "Engenharia Software FC": "bg-emerald-100 text-emerald-800",
   "Arquiteto Solucoes": "bg-orange-100 text-orange-800",
+  "Ciencia de Dados": "bg-cyan-100 text-cyan-800",
+  "Designer": "bg-pink-100 text-pink-800",
+  "Product Management": "bg-amber-100 text-amber-800",
 };
 
 export const STATUS_COLORS: Record<string, string> = {

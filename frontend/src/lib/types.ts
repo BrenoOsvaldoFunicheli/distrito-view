@@ -26,6 +26,7 @@ export interface Person {
   id: number;
   name: string;
   email: string;
+  company: string;
   is_active: boolean;
   notes: string | null;
   roles: PersonRoleInfo[];
@@ -111,6 +112,7 @@ export interface AllocationSummaryEntry {
   person_id: number;
   person_name: string;
   person_email: string;
+  person_company: string;
   roles: string[];
   current_allocation_percentage: number;
   allocations: {
@@ -127,6 +129,7 @@ export interface AllocationSummaryEntry {
 export interface TimelineEntry {
   person_id: number;
   person_name: string;
+  person_company: string;
   allocations: {
     allocation_id: number;
     contract_name: string;

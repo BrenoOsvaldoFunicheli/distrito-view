@@ -30,7 +30,7 @@ def get_person(db: Session, person_id: int) -> Person:
 
 
 def create_person(db: Session, data: PersonCreate) -> Person:
-    person = Person(name=data.name, email=data.email, notes=data.notes)
+    person = Person(name=data.name, email=data.email, company=data.company, notes=data.notes)
     db.add(person)
     db.flush()
     for rid in data.role_ids:

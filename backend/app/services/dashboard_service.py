@@ -160,6 +160,7 @@ def get_allocation_summary(db: Session, from_date: date, to_date: date) -> list[
             "person_id": person.id,
             "person_name": person.name,
             "person_email": person.email,
+            "person_company": person.company,
             "roles": [pr.role.name for pr in person.person_roles],
             "current_allocation_percentage": current_pct,
             "allocations": alloc_list,
@@ -202,6 +203,7 @@ def get_timeline_data(db: Session, from_date: date, to_date: date) -> list[dict]
         results.append({
             "person_id": person.id,
             "person_name": person.name,
+            "person_company": person.company,
             "allocations": allocs,
         })
 

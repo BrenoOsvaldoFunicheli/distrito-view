@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { format, differenceInDays, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -17,9 +17,12 @@ import { PageHeader } from "@/components/layout/page-header";
 import { useTimeline } from "@/hooks/use-dashboard";
 import { getClientColor } from "@/lib/constants";
 
+type CompanyFilter = "all" | "Distrito" | "Dojo";
+
 export default function AllocationsPage() {
   const [rangeMonths, setRangeMonths] = useState(6);
   const [offset, setOffset] = useState(0);
+  const [companyFilter, setCompanyFilter] = useState<CompanyFilter>("all");
 
   const today = new Date();
   const rangeStart = addMonths(subMonths(today, 1), offset);
@@ -29,7 +32,18 @@ export default function AllocationsPage() {
   const to = format(rangeEnd, "yyyy-MM-dd");
   const { data } = useTimeline(from, to);
 
-  const people = data?.data?.people || [];
+  const allPeople = data?.data?.people || [];
+
+  const companyCounts = useMemo(() => {
+    const distrito = allPeople.filter((p) => p.person_company === "Distrito").length;
+    const dojo = allPeople.filter((p) => p.person_company === "Dojo").length;
+    return { all: allPeople.length, distrito, dojo };
+  }, [allPeople]);
+
+  const people = useMemo(() => {
+    if (companyFilter === "all") return allPeople;
+    return allPeople.filter((p) => p.person_company === companyFilter);
+  }, [allPeople, companyFilter]);
   const totalDays = differenceInDays(rangeEnd, rangeStart);
 
   const months: { label: string; offset: number; width: number }[] = [];
@@ -74,7 +88,7 @@ export default function AllocationsPage() {
         }
       />
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <Button
           variant="outline"
           size="sm"
@@ -107,6 +121,29 @@ export default function AllocationsPage() {
               {m}M
             </Button>
           ))}
+        </div>
+        <div className="flex gap-1">
+          <Button
+            variant={companyFilter === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCompanyFilter("all")}
+          >
+            Todas ({companyCounts.all})
+          </Button>
+          <Button
+            variant={companyFilter === "Distrito" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCompanyFilter("Distrito")}
+          >
+            Distrito ({companyCounts.distrito})
+          </Button>
+          <Button
+            variant={companyFilter === "Dojo" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCompanyFilter("Dojo")}
+          >
+            Dojo ({companyCounts.dojo})
+          </Button>
         </div>
         <span className="text-sm text-muted-foreground">
           {format(rangeStart, "MMM yyyy", { locale: ptBR })} -{" "}

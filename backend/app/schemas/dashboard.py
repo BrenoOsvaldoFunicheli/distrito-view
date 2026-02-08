@@ -31,6 +31,7 @@ class AllocationSummary(BaseModel):
     person_id: int
     person_name: str
     person_email: str
+    person_company: str
     roles: list[str]
     current_allocation_percentage: int
     allocations: list[dict]
@@ -39,6 +40,7 @@ class AllocationSummary(BaseModel):
 class TimelineEntry(BaseModel):
     person_id: int
     person_name: str
+    person_company: str
     allocations: list[dict]
 
 

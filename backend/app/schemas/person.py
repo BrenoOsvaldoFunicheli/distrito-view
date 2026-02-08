@@ -15,6 +15,7 @@ class PersonRoleInfo(BaseModel):
 class PersonCreate(BaseModel):
     name: str
     email: str
+    company: str = "Distrito"
     role_ids: list[int] = []
     primary_role_id: int | None = None
     notes: str | None = None
@@ -23,6 +24,7 @@ class PersonCreate(BaseModel):
 class PersonUpdate(BaseModel):
     name: str | None = None
     email: str | None = None
+    company: str | None = None
     role_ids: list[int] | None = None
     primary_role_id: int | None = None
     notes: str | None = None
@@ -33,6 +35,7 @@ class PersonResponse(BaseModel):
     id: int
     name: str
     email: str
+    company: str
     is_active: bool
     notes: str | None
     roles: list[PersonRoleInfo]
