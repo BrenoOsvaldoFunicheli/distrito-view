@@ -8,6 +8,7 @@ import type {
   UtilizationStats,
   TimelineEntry,
   AllocationSummaryEntry,
+  CapacityPlanningData,
 } from "@/lib/types";
 
 export function useUnallocated(daysAhead = 30) {
@@ -46,4 +47,11 @@ export function useTimeline(from?: string, to?: string) {
   return useSWR<{
     data: { people: TimelineEntry[]; range: { from: string; to: string } };
   }>(`/api/v1/dashboard/timeline${query ? `?${query}` : ""}`, api.get);
+}
+
+export function useCapacityPlanning(year: number, month: number) {
+  return useSWR<{ data: CapacityPlanningData }>(
+    `/api/v1/dashboard/capacity-planning?year=${year}&month=${month}`,
+    api.get,
+  );
 }

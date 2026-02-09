@@ -1,3 +1,4 @@
+from calendar import monthrange
 from datetime import date, timedelta
 
 from sqlalchemy import func
@@ -246,4 +247,197 @@ def get_utilization_stats(db: Session, from_date: date, to_date: date) -> dict:
         "partially_allocated": partial,
         "on_bench": bench,
         "average_utilization": round(total_pct / total, 1) if total > 0 else 0,
+    }
+
+
+ROLE_ORDER = [
+    "Engenharia Dados", "Engenharia AI", "Engenharia AI FC",
+    "Engenharia Software", "Engenharia Software FC", "Arquiteto Solucoes",
+    "Ciencia de Dados", "Designer", "Product Management",
+]
+
+
+def get_capacity_planning(db: Session, year: int, month: int) -> dict:
+    month_start = date(year, month, 1)
+    _, last_day = monthrange(year, month)
+    month_end = date(year, month, last_day)
+
+    # --- DEMAND: contract_roles from contracts overlapping this month ---
+    contract_roles = (
+        db.query(ContractRole)
+        .options(
+            joinedload(ContractRole.contract).joinedload(Contract.client),
+            joinedload(ContractRole.role),
+            joinedload(ContractRole.allocations),
+        )
+        .join(ContractRole.contract)
+        .filter(
+            Contract.status.in_(["active", "draft"]),
+            Contract.start_date <= month_end,
+            Contract.end_date >= month_start,
+        )
+        .all()
+    )
+
+    demand_by_role: dict[int, dict] = {}
+    for cr in contract_roles:
+        rid = cr.role_id
+        filled = sum(
+            1 for a in cr.allocations
+            if a.start_date <= month_end and a.end_date >= month_start
+        )
+        unfilled = max(0, cr.quantity - filled)
+
+        if rid not in demand_by_role:
+            demand_by_role[rid] = {
+                "role_id": rid,
+                "role_name": cr.role.name,
+                "demand_slots": 0,
+                "demand_details": [],
+            }
+        demand_by_role[rid]["demand_slots"] += cr.quantity
+        demand_by_role[rid]["demand_details"].append({
+            "contract_id": cr.contract.id,
+            "contract_name": cr.contract.name,
+            "client_name": cr.contract.client.name,
+            "quantity": cr.quantity,
+            "allocation_percentage": cr.allocation_percentage,
+            "filled": filled,
+            "unfilled": unfilled,
+            "contract_start": cr.contract.start_date.isoformat(),
+            "contract_end": cr.contract.end_date.isoformat(),
+            "contract_status": cr.contract.status,
+        })
+
+    # --- SUPPLY: people grouped by primary role ---
+    people = (
+        db.query(Person)
+        .options(
+            joinedload(Person.person_roles).joinedload(PersonRole.role),
+            joinedload(Person.allocations)
+            .joinedload(Allocation.contract_role)
+            .joinedload(ContractRole.contract)
+            .joinedload(Contract.client),
+        )
+        .filter(Person.is_active == True)  # noqa: E712
+        .all()
+    )
+
+    supply_by_role: dict[int, list[dict]] = {}
+    for person in people:
+        if not person.person_roles:
+            continue
+        primary_pr = next(
+            (pr for pr in person.person_roles if pr.is_primary),
+            person.person_roles[0],
+        )
+        rid = primary_pr.role_id
+        role_name = primary_pr.role.name
+
+        month_allocs = [
+            a for a in person.allocations
+            if a.start_date <= month_end and a.end_date >= month_start
+        ]
+        alloc_pct = sum(a.allocation_percentage for a in month_allocs)
+
+        if alloc_pct >= 100:
+            status = "allocated"
+        elif alloc_pct > 0:
+            status = "partial"
+        else:
+            status = "bench"
+
+        becoming_free = False
+        allocation_ends = None
+        for a in month_allocs:
+            if month_start <= a.end_date <= month_end:
+                future = [
+                    fa for fa in person.allocations
+                    if fa.start_date > a.end_date
+                ]
+                if not future:
+                    becoming_free = True
+                    if allocation_ends is None or a.end_date > allocation_ends:
+                        allocation_ends = a.end_date
+
+        contracts_in_month = []
+        for a in month_allocs:
+            contracts_in_month.append({
+                "contract_name": a.contract_role.contract.name,
+                "client_name": a.contract_role.contract.client.name,
+                "percentage": a.allocation_percentage,
+                "end_date": a.end_date.isoformat(),
+            })
+
+        if rid not in supply_by_role:
+            supply_by_role[rid] = []
+        supply_by_role[rid].append({
+            "person_id": person.id,
+            "person_name": person.name,
+            "person_company": person.company,
+            "allocation_in_month": alloc_pct,
+            "current_contracts": contracts_in_month,
+            "status": status,
+            "becoming_free": becoming_free,
+            "allocation_ends": allocation_ends.isoformat() if allocation_ends else None,
+        })
+
+    # --- MERGE by role ---
+    all_role_ids = set(demand_by_role.keys()) | set(supply_by_role.keys())
+    all_roles = db.query(Role).all()
+    role_name_map = {r.id: r.name for r in all_roles}
+
+    roles_result = []
+    total_demand = 0
+    total_allocated = 0
+    total_available = 0
+    total_bench = 0
+
+    for rid in all_role_ids:
+        demand = demand_by_role.get(rid, {"demand_slots": 0, "demand_details": []})
+        supply = supply_by_role.get(rid, [])
+
+        s_allocated = sum(1 for p in supply if p["status"] == "allocated")
+        s_partial = sum(1 for p in supply if p["status"] == "partial")
+        s_bench = sum(1 for p in supply if p["status"] == "bench")
+        s_available = s_partial + s_bench
+        d_slots = demand["demand_slots"]
+        gap = d_slots - s_allocated
+
+        total_demand += d_slots
+        total_allocated += s_allocated
+        total_available += s_available
+        total_bench += s_bench
+
+        roles_result.append({
+            "role_id": rid,
+            "role_name": role_name_map.get(rid, "Unknown"),
+            "demand_slots": d_slots,
+            "demand_details": demand["demand_details"],
+            "supply_allocated": s_allocated,
+            "supply_available": s_available,
+            "supply_details": sorted(supply, key=lambda x: -x["allocation_in_month"]),
+            "gap": gap,
+        })
+
+    def role_sort_key(r):
+        name = r["role_name"]
+        try:
+            return ROLE_ORDER.index(name)
+        except ValueError:
+            return len(ROLE_ORDER)
+
+    roles_result.sort(key=role_sort_key)
+
+    return {
+        "month": f"{year:04d}-{month:02d}",
+        "roles": roles_result,
+        "totals": {
+            "total_demand": total_demand,
+            "total_allocated": total_allocated,
+            "total_available": total_available,
+            "total_gap": total_demand - total_allocated,
+            "total_people": len(people),
+            "total_bench": total_bench,
+        },
     }

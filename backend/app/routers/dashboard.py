@@ -59,6 +59,15 @@ def get_timeline(
     }
 
 
+@router.get("/capacity-planning")
+def get_capacity_planning(
+    year: int = Query(..., ge=2024, le=2030),
+    month: int = Query(..., ge=1, le=12),
+    db: Session = Depends(get_db),
+):
+    return {"data": dashboard_service.get_capacity_planning(db, year, month)}
+
+
 @router.get("/utilization")
 def get_utilization(
     from_date: date = Query(default=None),

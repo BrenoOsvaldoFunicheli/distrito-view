@@ -716,49 +716,18 @@ def seed_database():
             db.flush()
             contract_map[c["name"]] = contract
 
-            # Infer contract roles based on plan type
-            plan = c["plan_type"].lower()
-            if "squad" in plan:
-                # Squad plans typically need more people
-                cr1 = ContractRole(
-                    contract_id=contract.id,
-                    role_id=role_map["Engenharia AI"],
-                    allocation_percentage=100,
-                    quantity=2,
-                )
-                cr2 = ContractRole(
-                    contract_id=contract.id,
-                    role_id=role_map["Engenharia Software"],
-                    allocation_percentage=100,
-                    quantity=1,
-                )
-                cr3 = ContractRole(
-                    contract_id=contract.id,
-                    role_id=role_map["Engenharia Dados"],
-                    allocation_percentage=50,
-                    quantity=1,
-                )
-                db.add_all([cr1, cr2, cr3])
-            else:
-                # AI Factory / POC - smaller team
-                cr1 = ContractRole(
-                    contract_id=contract.id,
-                    role_id=role_map["Engenharia AI"],
-                    allocation_percentage=100,
-                    quantity=1,
-                )
-                db.add(cr1)
-
         db.flush()
         print(f"Created {len(client_map)} clients and {len(CONTRACTS_DATA)} contracts")
 
-        # Build contract_role lookup: (contract_id, role_id) -> contract_role
-        cr_lookup = {}
-        for cr in db.query(ContractRole).all():
-            key = (cr.contract_id, cr.role_id)
-            cr_lookup[key] = cr
+        # Pre-compute contract_role quantities from allocations data
+        # Count distinct people per (contract, role) to set realistic quantity
+        from collections import defaultdict
+        cr_people: dict[tuple[str, str], set[str]] = defaultdict(set)
+        for person_name, contract_name, percentage, role_name in ALLOCATIONS_DATA:
+            cr_people[(contract_name, role_name)].add(person_name)
 
-        # Seed allocations
+        # Seed allocations - create contract_roles on demand with correct quantity
+        cr_lookup: dict[tuple[int, int], ContractRole] = {}
         alloc_count = 0
         for person_name, contract_name, percentage, role_name in ALLOCATIONS_DATA:
             person_id = person_map.get(person_name)
@@ -776,15 +745,16 @@ def seed_database():
                 print(f"  WARNING: Role '{role_name}' not found, skipping")
                 continue
 
-            # Find or create contract_role
+            # Find or create contract_role with correct quantity
             key = (contract.id, role_id)
             cr = cr_lookup.get(key)
             if cr is None:
+                quantity = len(cr_people.get((contract_name, role_name), set()))
                 cr = ContractRole(
                     contract_id=contract.id,
                     role_id=role_id,
                     allocation_percentage=100,
-                    quantity=5,
+                    quantity=max(1, quantity),
                 )
                 db.add(cr)
                 db.flush()

@@ -140,3 +140,60 @@ export interface TimelineEntry {
     end_date: string;
   }[];
 }
+
+export interface CapacityDemandDetail {
+  contract_id: number;
+  contract_name: string;
+  client_name: string;
+  quantity: number;
+  allocation_percentage: number;
+  filled: number;
+  unfilled: number;
+  contract_start: string;
+  contract_end: string;
+  contract_status: string;
+}
+
+export interface CapacityPersonContract {
+  contract_name: string;
+  client_name: string;
+  percentage: number;
+  end_date: string;
+}
+
+export interface CapacitySupplyDetail {
+  person_id: number;
+  person_name: string;
+  person_company: string;
+  allocation_in_month: number;
+  current_contracts: CapacityPersonContract[];
+  status: "allocated" | "partial" | "bench";
+  becoming_free: boolean;
+  allocation_ends: string | null;
+}
+
+export interface CapacityRoleSummary {
+  role_id: number;
+  role_name: string;
+  demand_slots: number;
+  demand_details: CapacityDemandDetail[];
+  supply_allocated: number;
+  supply_available: number;
+  supply_details: CapacitySupplyDetail[];
+  gap: number;
+}
+
+export interface CapacityTotals {
+  total_demand: number;
+  total_allocated: number;
+  total_available: number;
+  total_gap: number;
+  total_people: number;
+  total_bench: number;
+}
+
+export interface CapacityPlanningData {
+  month: string;
+  roles: CapacityRoleSummary[];
+  totals: CapacityTotals;
+}

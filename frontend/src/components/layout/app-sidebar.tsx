@@ -10,6 +10,7 @@ import {
   Calendar,
   GanttChart,
   UserCheck,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/projects", label: "Gantt Projetos", icon: GanttChart },
   { href: "/allocations/people", label: "Alocacao Pessoas", icon: UserCheck },
   { href: "/allocations", label: "Timeline", icon: Calendar },
+  { href: "/capacity", label: "Capacidade", icon: TrendingUp },
 ];
 
 export function AppSidebar() {
