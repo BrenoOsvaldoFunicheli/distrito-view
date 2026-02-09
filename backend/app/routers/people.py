@@ -52,6 +52,7 @@ def _to_response(person) -> dict:
         "id": person.id,
         "name": person.name,
         "email": person.email,
+        "company": person.company,
         "is_active": person.is_active,
         "notes": person.notes,
         "roles": [

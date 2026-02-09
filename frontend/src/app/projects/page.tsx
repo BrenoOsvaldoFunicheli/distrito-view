@@ -27,7 +27,7 @@ import { useContracts } from "@/hooks/use-contracts";
 import { getClientColor } from "@/lib/constants";
 import type { Contract } from "@/lib/types";
 
-type GroupBy = "client" | "none" | "status";
+type GroupBy = "client" | "none" | "status" | "unified";
 type SortBy = "start" | "end" | "client" | "value";
 
 export default function ProjectsGanttPage() {
@@ -136,6 +136,64 @@ export default function ProjectsGanttPage() {
       .map(([label, contracts]) => ({ label, contracts }));
   }, [filteredContracts, groupBy]);
 
+  // Unified client timeline
+  const unifiedClients = useMemo(() => {
+    if (groupBy !== "unified") return [];
+    const map = new Map<
+      string,
+      {
+        clientName: string;
+        minStart: string;
+        maxEnd: string;
+        contractCount: number;
+        totalMrr: number;
+        totalSlots: number;
+        contracts: Contract[];
+      }
+    >();
+    for (const c of filteredContracts) {
+      const name = c.client.name;
+      const existing = map.get(name);
+      if (!existing) {
+        map.set(name, {
+          clientName: name,
+          minStart: c.start_date,
+          maxEnd: c.end_date,
+          contractCount: 1,
+          totalMrr: c.mrr || 0,
+          totalSlots: c.contract_roles.reduce((s, cr) => s + cr.quantity, 0),
+          contracts: [c],
+        });
+      } else {
+        if (c.start_date < existing.minStart) existing.minStart = c.start_date;
+        if (c.end_date > existing.maxEnd) existing.maxEnd = c.end_date;
+        existing.contractCount++;
+        existing.totalMrr += c.mrr || 0;
+        existing.totalSlots += c.contract_roles.reduce(
+          (s, cr) => s + cr.quantity,
+          0,
+        );
+        existing.contracts.push(c);
+      }
+    }
+    const result = Array.from(map.values());
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "start":
+          return a.minStart.localeCompare(b.minStart);
+        case "end":
+          return a.maxEnd.localeCompare(b.maxEnd);
+        case "client":
+          return a.clientName.localeCompare(b.clientName);
+        case "value":
+          return b.totalMrr - a.totalMrr;
+        default:
+          return 0;
+      }
+    });
+    return result;
+  }, [filteredContracts, groupBy, sortBy]);
+
   const formatCurrency = (value: number | null) => {
     if (!value) return "-";
     return new Intl.NumberFormat("pt-BR", {
@@ -219,6 +277,7 @@ export default function ProjectsGanttPage() {
               ["client", "Cliente"],
               ["status", "Status"],
               ["none", "Nenhum"],
+              ["unified", "Unificado"],
             ] as const
           ).map(([value, label]) => (
             <Button
@@ -305,160 +364,299 @@ export default function ProjectsGanttPage() {
                   </div>
                 </div>
 
-                {/* Groups & Rows */}
-                {groups.map((group) => (
-                  <div key={group.label || "__all"}>
-                    {/* Group header */}
-                    {group.label && (
-                      <div className="flex items-center mt-3 mb-1">
-                        <div className="w-64 flex-shrink-0 px-2">
-                          <span className="text-xs font-bold uppercase text-muted-foreground tracking-wider">
-                            {group.label}
+                {/* Unified client rows */}
+                {groupBy === "unified" &&
+                  unifiedClients.map((uc) => {
+                    const ucStart = new Date(uc.minStart);
+                    const ucEnd = new Date(uc.maxEnd);
+                    const start = Math.max(
+                      0,
+                      (differenceInDays(ucStart, rangeStart) / totalDays) * 100,
+                    );
+                    const end = Math.min(
+                      100,
+                      (differenceInDays(ucEnd, rangeStart) / totalDays) * 100,
+                    );
+                    const barWidth = end - start;
+                    const color = getClientColor(uc.clientName);
+                    const isPast = ucEnd < today;
+                    const isActive = ucStart <= today && ucEnd >= today;
+
+                    return (
+                      <div
+                        key={uc.clientName}
+                        className="flex items-center hover:bg-accent/30 rounded transition-colors group"
+                      >
+                        <div className="w-64 flex-shrink-0 px-2 py-1">
+                          <span className="text-sm font-medium truncate block">
+                            {uc.clientName}
                           </span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[11px] text-muted-foreground">
+                              {uc.contractCount} contrato
+                              {uc.contractCount !== 1 ? "s" : ""}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              ·
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              {formatCurrency(uc.totalMrr)}/mes
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              ·
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              {uc.totalSlots} vaga
+                              {uc.totalSlots !== 1 ? "s" : ""}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex-1 border-b border-dashed" />
+
+                        <div className="relative h-10 flex-1">
+                          {months.map((m, i) => (
+                            <div
+                              key={i}
+                              className="absolute top-0 h-full border-l border-border/30"
+                              style={{ left: `${m.offset}%` }}
+                            />
+                          ))}
+                          {todayOffset >= 0 && (
+                            <div
+                              className="absolute top-0 h-full w-px bg-red-500/60 z-20"
+                              style={{ left: `${todayOffset}%` }}
+                            />
+                          )}
+                          {barWidth > 0 && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className="absolute top-1.5 h-7 rounded-md flex items-center px-2 overflow-hidden cursor-default transition-shadow hover:shadow-md z-10"
+                                  style={{
+                                    left: `${start}%`,
+                                    width: `${barWidth}%`,
+                                    backgroundColor: color,
+                                    opacity: isPast ? 0.45 : 1,
+                                  }}
+                                >
+                                  {isActive && (
+                                    <div
+                                      className="absolute inset-0 bg-black/10 rounded-l-md"
+                                      style={{
+                                        width: `${Math.min(100, ((todayOffset - start) / barWidth) * 100)}%`,
+                                      }}
+                                    />
+                                  )}
+                                  <span className="relative text-[11px] text-white font-medium truncate">
+                                    {uc.clientName}
+                                  </span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent
+                                side="bottom"
+                                className="max-w-xs"
+                              >
+                                <div className="space-y-1.5">
+                                  <p className="font-bold">{uc.clientName}</p>
+                                  <p className="text-xs">
+                                    {new Date(uc.minStart).toLocaleDateString(
+                                      "pt-BR",
+                                    )}{" "}
+                                    -{" "}
+                                    {new Date(uc.maxEnd).toLocaleDateString(
+                                      "pt-BR",
+                                    )}
+                                  </p>
+                                  <p className="text-xs">
+                                    {uc.contractCount} contrato
+                                    {uc.contractCount !== 1 ? "s" : ""} | MRR
+                                    total: {formatCurrency(uc.totalMrr)} |{" "}
+                                    {uc.totalSlots} vaga
+                                    {uc.totalSlots !== 1 ? "s" : ""}
+                                  </p>
+                                  <div className="pt-1 border-t space-y-0.5">
+                                    {uc.contracts.map((c) => (
+                                      <p key={c.id} className="text-[11px]">
+                                        {c.name} (
+                                        {new Date(
+                                          c.start_date,
+                                        ).toLocaleDateString("pt-BR")}{" "}
+                                        -{" "}
+                                        {new Date(
+                                          c.end_date,
+                                        ).toLocaleDateString("pt-BR")}
+                                        )
+                                      </p>
+                                    ))}
+                                  </div>
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
                       </div>
-                    )}
+                    );
+                  })}
 
-                    {/* Contract rows */}
-                    {group.contracts.map((contract) => {
-                      const bar = getContractBarStyle(contract);
-                      const totalSlots = contract.contract_roles.reduce(
-                        (sum, cr) => sum + cr.quantity,
-                        0,
-                      );
-                      const color = getClientColor(contract.client.name);
+                {/* Groups & Rows */}
+                {groupBy !== "unified" &&
+                  groups.map((group) => (
+                    <div key={group.label || "__all"}>
+                      {/* Group header */}
+                      {group.label && (
+                        <div className="flex items-center mt-3 mb-1">
+                          <div className="w-64 flex-shrink-0 px-2">
+                            <span className="text-xs font-bold uppercase text-muted-foreground tracking-wider">
+                              {group.label}
+                            </span>
+                          </div>
+                          <div className="flex-1 border-b border-dashed" />
+                        </div>
+                      )}
 
-                      return (
-                        <div
-                          key={contract.id}
-                          className="flex items-center hover:bg-accent/30 rounded transition-colors group"
-                        >
-                          {/* Contract label */}
-                          <div className="w-64 flex-shrink-0 px-2 py-1">
-                            <Link
-                              href={`/contracts/${contract.id}`}
-                              className="text-sm font-medium hover:underline truncate block"
-                            >
-                              {contract.name}
-                            </Link>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[11px] text-muted-foreground">
-                                {formatCurrency(contract.mrr)}/mes
-                              </span>
-                              <span className="text-[11px] text-muted-foreground">
-                                ·
-                              </span>
-                              <span className="text-[11px] text-muted-foreground">
-                                {totalSlots} vaga{totalSlots !== 1 ? "s" : ""}
-                              </span>
+                      {/* Contract rows */}
+                      {group.contracts.map((contract) => {
+                        const bar = getContractBarStyle(contract);
+                        const totalSlots = contract.contract_roles.reduce(
+                          (sum, cr) => sum + cr.quantity,
+                          0,
+                        );
+                        const color = getClientColor(contract.client.name);
+
+                        return (
+                          <div
+                            key={contract.id}
+                            className="flex items-center hover:bg-accent/30 rounded transition-colors group"
+                          >
+                            {/* Contract label */}
+                            <div className="w-64 flex-shrink-0 px-2 py-1">
+                              <Link
+                                href={`/contracts/${contract.id}`}
+                                className="text-sm font-medium hover:underline truncate block"
+                              >
+                                {contract.name}
+                              </Link>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[11px] text-muted-foreground">
+                                  {formatCurrency(contract.mrr)}/mes
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  ·
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {totalSlots} vaga
+                                  {totalSlots !== 1 ? "s" : ""}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Bar area */}
+                            <div className="relative h-10 flex-1">
+                              {/* Grid lines */}
+                              {months.map((m, i) => (
+                                <div
+                                  key={i}
+                                  className="absolute top-0 h-full border-l border-border/30"
+                                  style={{ left: `${m.offset}%` }}
+                                />
+                              ))}
+
+                              {/* Today line */}
+                              {todayOffset >= 0 && (
+                                <div
+                                  className="absolute top-0 h-full w-px bg-red-500/60 z-20"
+                                  style={{ left: `${todayOffset}%` }}
+                                />
+                              )}
+
+                              {/* Contract bar */}
+                              {bar.width > 0 && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Link
+                                      href={`/contracts/${contract.id}`}
+                                      className="absolute top-1.5 h-7 rounded-md flex items-center px-2 overflow-hidden cursor-pointer transition-shadow hover:shadow-md z-10"
+                                      style={{
+                                        left: `${bar.start}%`,
+                                        width: `${bar.width}%`,
+                                        backgroundColor: color,
+                                        opacity: bar.isPast ? 0.45 : 1,
+                                      }}
+                                    >
+                                      {/* Progress indicator: filled portion up to today */}
+                                      {bar.isActive && (
+                                        <div
+                                          className="absolute inset-0 bg-black/10 rounded-l-md"
+                                          style={{
+                                            width: `${Math.min(100, ((todayOffset - bar.start) / bar.width) * 100)}%`,
+                                          }}
+                                        />
+                                      )}
+                                      <span className="relative text-[11px] text-white font-medium truncate">
+                                        {contract.name}
+                                      </span>
+                                    </Link>
+                                  </TooltipTrigger>
+                                  <TooltipContent
+                                    side="bottom"
+                                    className="max-w-xs"
+                                  >
+                                    <div className="space-y-1.5">
+                                      <p className="font-bold">
+                                        {contract.name}
+                                      </p>
+                                      <p className="text-xs">
+                                        {contract.client.name} |{" "}
+                                        <StatusBadge
+                                          status={contract.status}
+                                        />
+                                      </p>
+                                      <p className="text-xs">
+                                        {new Date(
+                                          contract.start_date,
+                                        ).toLocaleDateString("pt-BR")}{" "}
+                                        -{" "}
+                                        {new Date(
+                                          contract.end_date,
+                                        ).toLocaleDateString("pt-BR")}{" "}
+                                        ({contract.duration_months} meses)
+                                      </p>
+                                      <p className="text-xs">
+                                        MRR: {formatCurrency(contract.mrr)} |
+                                        Total:{" "}
+                                        {formatCurrency(contract.total_value)}
+                                      </p>
+                                      {contract.contract_roles.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 pt-1">
+                                          {contract.contract_roles.map(
+                                            (cr) => (
+                                              <RoleBadge
+                                                key={cr.id}
+                                                name={cr.role.name}
+                                              />
+                                            ),
+                                          )}
+                                        </div>
+                                      )}
+                                      {contract.plan_type && (
+                                        <p className="text-[10px] text-muted-foreground">
+                                          {contract.plan_type}
+                                        </p>
+                                      )}
+                                      {contract.notes && (
+                                        <p className="text-[10px] text-muted-foreground italic">
+                                          {contract.notes}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                             </div>
                           </div>
-
-                          {/* Bar area */}
-                          <div className="relative h-10 flex-1">
-                            {/* Grid lines */}
-                            {months.map((m, i) => (
-                              <div
-                                key={i}
-                                className="absolute top-0 h-full border-l border-border/30"
-                                style={{ left: `${m.offset}%` }}
-                              />
-                            ))}
-
-                            {/* Today line */}
-                            {todayOffset >= 0 && (
-                              <div
-                                className="absolute top-0 h-full w-px bg-red-500/60 z-20"
-                                style={{ left: `${todayOffset}%` }}
-                              />
-                            )}
-
-                            {/* Contract bar */}
-                            {bar.width > 0 && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Link
-                                    href={`/contracts/${contract.id}`}
-                                    className="absolute top-1.5 h-7 rounded-md flex items-center px-2 overflow-hidden cursor-pointer transition-shadow hover:shadow-md z-10"
-                                    style={{
-                                      left: `${bar.start}%`,
-                                      width: `${bar.width}%`,
-                                      backgroundColor: color,
-                                      opacity: bar.isPast ? 0.45 : 1,
-                                    }}
-                                  >
-                                    {/* Progress indicator: filled portion up to today */}
-                                    {bar.isActive && (
-                                      <div
-                                        className="absolute inset-0 bg-black/10 rounded-l-md"
-                                        style={{
-                                          width: `${Math.min(100, ((todayOffset - bar.start) / bar.width) * 100)}%`,
-                                        }}
-                                      />
-                                    )}
-                                    <span className="relative text-[11px] text-white font-medium truncate">
-                                      {contract.name}
-                                    </span>
-                                  </Link>
-                                </TooltipTrigger>
-                                <TooltipContent
-                                  side="bottom"
-                                  className="max-w-xs"
-                                >
-                                  <div className="space-y-1.5">
-                                    <p className="font-bold">
-                                      {contract.name}
-                                    </p>
-                                    <p className="text-xs">
-                                      {contract.client.name} |{" "}
-                                      <StatusBadge status={contract.status} />
-                                    </p>
-                                    <p className="text-xs">
-                                      {new Date(
-                                        contract.start_date,
-                                      ).toLocaleDateString("pt-BR")}{" "}
-                                      -{" "}
-                                      {new Date(
-                                        contract.end_date,
-                                      ).toLocaleDateString("pt-BR")}{" "}
-                                      ({contract.duration_months} meses)
-                                    </p>
-                                    <p className="text-xs">
-                                      MRR: {formatCurrency(contract.mrr)} |
-                                      Total:{" "}
-                                      {formatCurrency(contract.total_value)}
-                                    </p>
-                                    {contract.contract_roles.length > 0 && (
-                                      <div className="flex flex-wrap gap-1 pt-1">
-                                        {contract.contract_roles.map((cr) => (
-                                          <RoleBadge
-                                            key={cr.id}
-                                            name={cr.role.name}
-                                          />
-                                        ))}
-                                      </div>
-                                    )}
-                                    {contract.plan_type && (
-                                      <p className="text-[10px] text-muted-foreground">
-                                        {contract.plan_type}
-                                      </p>
-                                    )}
-                                    {contract.notes && (
-                                      <p className="text-[10px] text-muted-foreground italic">
-                                        {contract.notes}
-                                      </p>
-                                    )}
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                        );
+                      })}
+                    </div>
+                  ))}
 
                 {filteredContracts.length === 0 && (
                   <p className="py-12 text-center text-sm text-muted-foreground">

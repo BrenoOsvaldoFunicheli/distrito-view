@@ -17,7 +17,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { RoleBadge } from "@/components/shared/role-badge";
 import { usePeople } from "@/hooks/use-people";
 
-type CompanyFilter = "all" | "Distrito" | "Dojo";
+type CompanyFilter = "all" | "Distrito" | "Dojo" | "FCamara";
 
 export default function PeoplePage() {
   const { data: people, isLoading } = usePeople();
@@ -28,7 +28,8 @@ export default function PeoplePage() {
     if (!people) return { all: 0, distrito: 0, dojo: 0 };
     const distrito = people.filter((p) => p.company === "Distrito").length;
     const dojo = people.filter((p) => p.company === "Dojo").length;
-    return { all: people.length, distrito, dojo };
+    const fcamara = people.filter((p) => p.company === "FCamara").length;
+    return { all: people.length, distrito, dojo, fcamara };
   }, [people]);
 
   const filtered = useMemo(() => {
@@ -99,6 +100,13 @@ export default function PeoplePage() {
             onClick={() => setCompanyFilter("Dojo")}
           >
             Dojo ({companyCounts.dojo})
+          </Button>
+          <Button
+            variant={companyFilter === "FCamara" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCompanyFilter("FCamara")}
+          >
+            FCamara ({companyCounts.fcamara})
           </Button>
         </div>
       </div>

@@ -17,7 +17,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { useTimeline } from "@/hooks/use-dashboard";
 import { getClientColor } from "@/lib/constants";
 
-type CompanyFilter = "all" | "Distrito" | "Dojo";
+type CompanyFilter = "all" | "Distrito" | "Dojo" | "FCamara";
 
 export default function AllocationsPage() {
   const [rangeMonths, setRangeMonths] = useState(6);
@@ -37,7 +37,8 @@ export default function AllocationsPage() {
   const companyCounts = useMemo(() => {
     const distrito = allPeople.filter((p) => p.person_company === "Distrito").length;
     const dojo = allPeople.filter((p) => p.person_company === "Dojo").length;
-    return { all: allPeople.length, distrito, dojo };
+    const fcamara = allPeople.filter((p) => p.person_company === "FCamara").length;
+    return { all: allPeople.length, distrito, dojo, fcamara };
   }, [allPeople]);
 
   const people = useMemo(() => {
@@ -143,6 +144,13 @@ export default function AllocationsPage() {
             onClick={() => setCompanyFilter("Dojo")}
           >
             Dojo ({companyCounts.dojo})
+          </Button>
+          <Button
+            variant={companyFilter === "FCamara" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCompanyFilter("FCamara")}
+          >
+            FCamara ({companyCounts.fcamara})
           </Button>
         </div>
         <span className="text-sm text-muted-foreground">

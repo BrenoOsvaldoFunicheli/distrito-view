@@ -474,14 +474,12 @@ PEOPLE_DATA = [
      "roles": ["Engenharia Dados"], "primary": "Engenharia Dados", "company": "Dojo"},
     {"name": "Hermes", "email": "hermes@dojo.do",
      "roles": ["Engenharia Dados", "Ciencia de Dados"], "primary": "Engenharia Dados", "company": "Dojo"},
-    {"name": "Leo Souza", "email": "leo.souza@distrito.me",
-     "roles": ["Engenharia Software"], "primary": "Engenharia Software", "company": "Distrito"},
-    {"name": "Leo Haine", "email": "leo.haine@distrito.me",
-     "roles": ["Engenharia Software"], "primary": "Engenharia Software", "company": "Distrito"},
-    {"name": "Vinicius", "email": "vinicius@distrito.me",
-     "roles": ["Engenharia Software"], "primary": "Engenharia Software", "company": "Distrito"},
-    {"name": "Rodrigo", "email": "rodrigo@distrito.me",
-     "roles": ["Engenharia AI"], "primary": "Engenharia AI", "company": "Distrito"},
+    {"name": "Leo Souza", "email": "leo.souza@fcamara.com",
+     "roles": ["Engenharia Software"], "primary": "Engenharia Software", "company": "FCamara"},
+    {"name": "Leo Haine", "email": "leo.haine@dojo.do",
+     "roles": ["Engenharia Software"], "primary": "Engenharia Software", "company": "Dojo"},
+    {"name": "Vinicius", "email": "vinicius@dojo.do",
+     "roles": ["Engenharia Software"], "primary": "Engenharia Software", "company": "Dojo"},
     # === DISTRITO - Produto (7) ===
     {"name": "Daniel Mischiatti", "email": "daniel.mischiatti@distrito.me",
      "roles": ["Product Management"], "primary": "Product Management", "company": "Distrito"},
@@ -545,7 +543,6 @@ ALLOCATIONS_DATA = [
     ("Hudson Barroso", "Yara Fertilizantes - AI Factory (AWS)", 70, "Engenharia AI"),
     # 13) Elux
     ("Lucas", "ELUX - AI Factory", 100, "Engenharia AI"),
-    ("Rodrigo", "ELUX - AI Factory", 100, "Engenharia AI"),
     # 14) Swift/JBS
     ("Kaique", "SWIFT SEARA - AI Factory", 100, "Engenharia AI"),
     # 15) JSL

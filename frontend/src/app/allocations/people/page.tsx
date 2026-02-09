@@ -37,7 +37,7 @@ const ROLE_BG_COLORS: Record<string, string> = {
 };
 
 type Filter = "all" | "allocated" | "partial" | "bench";
-type CompanyFilter = "all" | "Distrito" | "Dojo";
+type CompanyFilter = "all" | "Distrito" | "Dojo" | "FCamara";
 
 function groupByRole(people: AllocationSummaryEntry[]) {
   const groups: Record<string, AllocationSummaryEntry[]> = {};
@@ -124,7 +124,8 @@ export default function PeopleAllocationsPage() {
   const companyCounts = useMemo(() => {
     const distrito = people.filter((p) => p.person_company === "Distrito").length;
     const dojo = people.filter((p) => p.person_company === "Dojo").length;
-    return { all: people.length, distrito, dojo };
+    const fcamara = people.filter((p) => p.person_company === "FCamara").length;
+    return { all: people.length, distrito, dojo, fcamara };
   }, [people]);
 
   const groups = useMemo(() => groupByRole(filtered), [filtered]);
@@ -197,6 +198,13 @@ export default function PeopleAllocationsPage() {
               onClick={() => setCompanyFilter("Dojo")}
             >
               Dojo ({companyCounts.dojo})
+            </Button>
+            <Button
+              variant={companyFilter === "FCamara" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setCompanyFilter("FCamara")}
+            >
+              FCamara ({companyCounts.fcamara})
             </Button>
           </div>
           <div className="flex gap-1">
