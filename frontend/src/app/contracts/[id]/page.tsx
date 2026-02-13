@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { RoleBadge } from "@/components/shared/role-badge";
 import { PercentageBadge } from "@/components/shared/percentage-badge";
 import { useContract } from "@/hooks/use-contracts";
 import { useAllocations } from "@/hooks/use-allocations";
+import { api } from "@/lib/api";
 
 export default function ContractDetailPage({
   params,
@@ -27,8 +28,17 @@ export default function ContractDetailPage({
 }) {
   const { id } = use(params);
   const contractId = parseInt(id);
-  const { data: contract } = useContract(contractId);
+  const { data: contract, mutate } = useContract(contractId);
   const { data: allocations } = useAllocations(undefined, contractId);
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      await api.put(`/api/v1/contracts/${contractId}`, { status: newStatus });
+      mutate();
+    } catch {
+      // silently fail
+    }
+  };
 
   if (!contract) {
     return <div className="animate-pulse h-64 bg-muted rounded-lg" />;
@@ -56,7 +66,19 @@ export default function ContractDetailPage({
       <PageHeader
         title={contract.name}
         description={`${contract.client.name} | ${contract.plan_type || ""}`}
-        actions={<StatusBadge status={contract.status} />}
+        actions={
+          <select
+            className="rounded-md border px-2 py-1 text-sm"
+            value={contract.status}
+            onChange={(e) => handleStatusChange(e.target.value)}
+          >
+            <option value="active">Ativo</option>
+            <option value="pipeline">Pipeline</option>
+            <option value="draft">Rascunho</option>
+            <option value="completed">Concluido</option>
+            <option value="cancelled">Cancelado</option>
+          </select>
+        }
       />
 
       <div className="grid gap-6 md:grid-cols-4">

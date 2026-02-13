@@ -221,8 +221,9 @@ export default function ProjectsGanttPage() {
       end: cEnd,
     });
     const isPast = cEnd < today;
+    const isPipeline = contract.status === "pipeline";
 
-    return { start, width, isActive, isPast };
+    return { start, width, isActive, isPast, isPipeline };
   };
 
   return (
@@ -574,12 +575,13 @@ export default function ProjectsGanttPage() {
                                   <TooltipTrigger asChild>
                                     <Link
                                       href={`/contracts/${contract.id}`}
-                                      className="absolute top-1.5 h-7 rounded-md flex items-center px-2 overflow-hidden cursor-pointer transition-shadow hover:shadow-md z-10"
+                                      className={`absolute top-1.5 h-7 rounded-md flex items-center px-2 overflow-hidden cursor-pointer transition-shadow hover:shadow-md z-10 ${bar.isPipeline ? "border-2 border-dashed" : ""}`}
                                       style={{
                                         left: `${bar.start}%`,
                                         width: `${bar.width}%`,
-                                        backgroundColor: color,
-                                        opacity: bar.isPast ? 0.45 : 1,
+                                        backgroundColor: bar.isPipeline ? "transparent" : color,
+                                        borderColor: bar.isPipeline ? color : undefined,
+                                        opacity: bar.isPast ? 0.45 : bar.isPipeline ? 0.7 : 1,
                                       }}
                                     >
                                       {/* Progress indicator: filled portion up to today */}
@@ -591,7 +593,10 @@ export default function ProjectsGanttPage() {
                                           }}
                                         />
                                       )}
-                                      <span className="relative text-[11px] text-white font-medium truncate">
+                                      <span
+                                        className="relative text-[11px] font-medium truncate"
+                                        style={{ color: bar.isPipeline ? color : "white" }}
+                                      >
                                         {contract.name}
                                       </span>
                                     </Link>
@@ -683,6 +688,10 @@ export default function ProjectsGanttPage() {
                   <div className="flex items-center gap-1.5">
                     <div className="w-8 h-3 rounded-sm bg-primary" />
                     <span>Futuro</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-8 h-3 rounded-sm border-2 border-dashed border-purple-500 opacity-70" />
+                    <span>Pipeline</span>
                   </div>
                 </div>
               </div>

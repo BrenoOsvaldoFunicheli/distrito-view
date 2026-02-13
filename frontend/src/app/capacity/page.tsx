@@ -15,26 +15,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatsCard } from "@/components/shared/stats-card";
 import { RoleBadge } from "@/components/shared/role-badge";
-import { PercentageBadge } from "@/components/shared/percentage-badge";
 import { useCapacityPlanning } from "@/hooks/use-dashboard";
-import { getClientColor } from "@/lib/constants";
 import type { CapacityRoleSummary } from "@/lib/types";
+
+function fmtNum(n: number): string {
+  return n % 1 === 0 ? String(n) : n.toFixed(1);
+}
 
 export default function CapacityPlanningPage() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
+  const [company, setCompany] = useState<string>("");
 
-  const { data, isLoading } = useCapacityPlanning(year, month);
+  const { data, isLoading } = useCapacityPlanning(year, month, company || undefined);
   const capacity = data?.data;
 
   const goToMonth = (delta: number) => {
@@ -61,8 +58,8 @@ export default function CapacityPlanningPage() {
         description="Confronto entre demanda dos contratos e oferta de pessoas"
       />
 
-      {/* Month Navigation */}
-      <div className="flex items-center gap-2">
+      {/* Filters */}
+      <div className="flex items-center gap-4">
         <div className="flex items-center gap-1">
           <Button variant="outline" size="sm" onClick={() => goToMonth(-1)}>
             <ChevronLeft className="h-4 w-4" />
@@ -74,7 +71,17 @@ export default function CapacityPlanningPage() {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <span className="text-lg font-semibold ml-2">{capitalizedMonth}</span>
+        <span className="text-lg font-semibold">{capitalizedMonth}</span>
+        <select
+          value={company}
+          onChange={(e) => setCompany(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+        >
+          <option value="">Todas empresas</option>
+          <option value="Distrito">Distrito</option>
+          <option value="Dojo">Dojo</option>
+          <option value="FCamara">FCamara</option>
+        </select>
       </div>
 
       {isLoading && (
@@ -90,43 +97,38 @@ export default function CapacityPlanningPage() {
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard
-              title="Demanda Total"
-              value={`${capacity.totals.total_demand} vagas`}
+              title="Precisamos"
+              value={`${fmtNum(capacity.totals.total_demand)} vagas`}
               icon={TrendingUp}
             />
             <StatsCard
-              title="Pessoas Alocadas"
-              value={capacity.totals.total_allocated}
-              icon={UserCheck}
+              title="Temos"
+              value={`${capacity.totals.total_people} pessoas`}
+              icon={Users}
             />
             <StatsCard
-              title="Pessoas Disponiveis"
-              value={capacity.totals.total_available}
-              icon={Users}
+              title="Alocados"
+              value={capacity.totals.total_allocated}
+              icon={UserCheck}
               description={`${capacity.totals.total_bench} no bench`}
             />
             <StatsCard
               title="Gap"
-              value={
-                capacity.totals.total_gap > 0
-                  ? `+${capacity.totals.total_gap}`
-                  : `${capacity.totals.total_gap}`
-              }
+              value={(() => {
+                const gap = capacity.totals.total_demand - capacity.totals.total_people;
+                return gap > 0 ? `+${fmtNum(gap)}` : fmtNum(gap);
+              })()}
               icon={AlertTriangle}
               description={
-                capacity.totals.total_gap > 0
-                  ? "Vagas abertas"
+                capacity.totals.total_demand - capacity.totals.total_people > 0
+                  ? "Faltam pessoas"
                   : "Equipe suficiente"
               }
             />
           </div>
 
-          {/* Per-Role Sections */}
-          <div className="space-y-4">
-            {capacity.roles.map((role) => (
-              <RoleCard key={role.role_id} role={role} />
-            ))}
-          </div>
+          {/* Demand by Contract */}
+          <ContractDemandTable roles={capacity.roles} />
 
           {capacity.roles.length === 0 && (
             <p className="py-12 text-center text-sm text-muted-foreground">
@@ -139,239 +141,106 @@ export default function CapacityPlanningPage() {
   );
 }
 
-function RoleCard({ role }: { role: CapacityRoleSummary }) {
-  const gapColor =
-    role.gap > 0
-      ? "text-red-600"
-      : role.gap < 0
-        ? "text-green-600"
-        : "text-muted-foreground";
+function ContractDemandTable({ roles }: { roles: CapacityRoleSummary[] }) {
+  // Reagrupa demand_details de todas as roles por contrato
+  const contractMap = new Map<
+    number,
+    {
+      contract_id: number;
+      contract_name: string;
+      client_name: string;
+      contract_end: string;
+      contract_status: string;
+      roles: { role_name: string; fte: number; allocation_percentage: number; filled: number; unfilled: number }[];
+    }
+  >();
 
-  const becomingFreeCount = role.supply_details.filter(
-    (p) => p.becoming_free,
-  ).length;
+  for (const role of roles) {
+    for (const d of role.demand_details) {
+      if (!contractMap.has(d.contract_id)) {
+        contractMap.set(d.contract_id, {
+          contract_id: d.contract_id,
+          contract_name: d.contract_name,
+          client_name: d.client_name,
+          contract_end: d.contract_end,
+          contract_status: d.contract_status,
+          roles: [],
+        });
+      }
+      const fte = d.fte ?? (d.quantity * d.allocation_percentage / 100);
+      contractMap.get(d.contract_id)!.roles.push({
+        role_name: role.role_name,
+        fte,
+        allocation_percentage: d.allocation_percentage,
+        filled: d.filled,
+        unfilled: d.unfilled,
+      });
+    }
+  }
+
+  const contracts = Array.from(contractMap.values()).sort((a, b) =>
+    a.contract_name.localeCompare(b.contract_name),
+  );
+
+  if (contracts.length === 0) return null;
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <RoleBadge name={role.role_name} />
-          <div className="flex flex-wrap gap-4 text-sm">
-            <span>
-              Demanda: <strong>{role.demand_slots}</strong>
-            </span>
-            <span>
-              Alocados: <strong>{role.supply_allocated}</strong>
-            </span>
-            <span>
-              Disponiveis: <strong>{role.supply_available}</strong>
-            </span>
-            <span className={gapColor}>
-              Gap:{" "}
-              <strong>{role.gap > 0 ? `+${role.gap}` : role.gap}</strong>
-            </span>
-            {becomingFreeCount > 0 && (
-              <Badge variant="outline" className="text-amber-600 border-amber-300">
-                {becomingFreeCount} saindo
-              </Badge>
-            )}
-          </div>
-        </div>
+        <h3 className="text-sm font-semibold">Vagas por Contrato</h3>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="demanda">
-          <TabsList>
-            <TabsTrigger value="demanda">
-              Demanda ({role.demand_details.length})
-            </TabsTrigger>
-            <TabsTrigger value="equipe">
-              Equipe ({role.supply_details.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="demanda">
-            {role.demand_details.length === 0 ? (
-              <p className="py-4 text-sm text-muted-foreground">
-                Nenhuma demanda para esta role neste mes.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm mt-2">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left px-3 py-2 font-medium">
-                        Contrato
-                      </th>
-                      <th className="text-left px-3 py-2 font-medium">
-                        Cliente
-                      </th>
-                      <th className="text-center px-3 py-2 font-medium">
-                        Vagas
-                      </th>
-                      <th className="text-center px-3 py-2 font-medium">
-                        Preenchidas
-                      </th>
-                      <th className="text-center px-3 py-2 font-medium">
-                        Abertas
-                      </th>
-                      <th className="text-left px-3 py-2 font-medium">
-                        Fim do Contrato
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {role.demand_details.map((d) => (
-                      <tr
-                        key={`${d.contract_id}-${d.allocation_percentage}`}
-                        className="border-b hover:bg-accent/30"
-                      >
-                        <td className="px-3 py-2">
-                          <Link
-                            href={`/contracts/${d.contract_id}`}
-                            className="hover:underline"
-                          >
-                            {d.contract_name}
-                          </Link>
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {d.client_name}
-                        </td>
-                        <td className="px-3 py-2 text-center">{d.quantity}</td>
-                        <td className="px-3 py-2 text-center">{d.filled}</td>
-                        <td className="px-3 py-2 text-center">
-                          <span
-                            className={
-                              d.unfilled > 0
-                                ? "text-red-600 font-medium"
-                                : "text-green-600"
-                            }
-                          >
-                            {d.unfilled}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {new Date(d.contract_end).toLocaleDateString("pt-BR")}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="equipe">
-            {role.supply_details.length === 0 ? (
-              <p className="py-4 text-sm text-muted-foreground">
-                Nenhuma pessoa com esta role.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm mt-2">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left px-3 py-2 font-medium">
-                        Pessoa
-                      </th>
-                      <th className="text-left px-3 py-2 font-medium">
-                        Empresa
-                      </th>
-                      <th className="text-center px-3 py-2 font-medium">
-                        Alocacao
-                      </th>
-                      <th className="text-left px-3 py-2 font-medium">
-                        Contratos no Mes
-                      </th>
-                      <th className="text-center px-3 py-2 font-medium">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {role.supply_details.map((p) => (
-                      <tr
-                        key={p.person_id}
-                        className={`border-b hover:bg-accent/30 ${p.becoming_free ? "bg-amber-50/50" : ""}`}
-                      >
-                        <td className="px-3 py-2">
-                          <Link
-                            href={`/people/${p.person_id}`}
-                            className="hover:underline"
-                          >
-                            {p.person_name}
-                          </Link>
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {p.person_company}
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          <PercentageBadge percentage={p.allocation_in_month} />
-                        </td>
-                        <td className="px-3 py-2">
-                          {p.current_contracts.length === 0 ? (
-                            <span className="text-muted-foreground">-</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {p.current_contracts.map((c, i) => (
-                                <span
-                                  key={i}
-                                  className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded text-white"
-                                  style={{
-                                    backgroundColor: getClientColor(
-                                      c.client_name,
-                                    ),
-                                  }}
-                                >
-                                  {c.client_name} ({c.percentage}%)
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          {p.becoming_free ? (
-                            <Badge
-                              variant="outline"
-                              className="text-amber-600 border-amber-300"
-                            >
-                              Saindo{" "}
-                              {p.allocation_ends &&
-                                new Date(
-                                  p.allocation_ends,
-                                ).toLocaleDateString("pt-BR")}
-                            </Badge>
-                          ) : p.status === "allocated" ? (
-                            <Badge
-                              variant="outline"
-                              className="text-green-600 border-green-300"
-                            >
-                              Alocado
-                            </Badge>
-                          ) : p.status === "partial" ? (
-                            <Badge
-                              variant="outline"
-                              className="text-blue-600 border-blue-300"
-                            >
-                              Parcial
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-gray-600 border-gray-300"
-                            >
-                              Bench
-                            </Badge>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="text-left px-3 py-2 font-medium">Contrato</th>
+                <th className="text-left px-3 py-2 font-medium">Cliente</th>
+                <th className="text-left px-3 py-2 font-medium">Vagas</th>
+                <th className="text-center px-3 py-2 font-medium">Total</th>
+                <th className="text-left px-3 py-2 font-medium">Fim</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contracts.map((c) => {
+                const totalFte = c.roles.reduce((s, r) => s + r.fte, 0);
+                return (
+                  <tr key={c.contract_id} className="border-b hover:bg-accent/30">
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <Link href={`/contracts/${c.contract_id}`} className="hover:underline">
+                          {c.contract_name}
+                        </Link>
+                        {c.contract_status === "pipeline" && (
+                          <Badge variant="outline" className="text-purple-600 border-purple-300 text-[10px] px-1 py-0">
+                            Pipeline
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{c.client_name}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-1">
+                        {c.roles.map((r) => (
+                          <RoleBadge
+                            key={r.role_name}
+                            name={`${r.role_name} (${fmtNum(r.fte)})`}
+                          />
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-center">{fmtNum(totalFte)}</td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {new Date(c.contract_end).toLocaleDateString("pt-BR")}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );
 }
+

@@ -13,27 +13,21 @@ import { ROLE_COLORS, getClientColor } from "@/lib/constants";
 import type { AllocationSummaryEntry } from "@/lib/types";
 
 const ROLE_ORDER = [
-  "Engenharia Dados",
-  "Engenharia AI",
-  "Engenharia AI FC",
-  "Engenharia Software",
-  "Engenharia Software FC",
-  "Arquiteto Solucoes",
-  "Ciencia de Dados",
-  "Designer",
-  "Product Management",
+  "Engenheiro IA",
+  "Engenheiro Dados",
+  "Desenvolvedor",
+  "Engenheiro de ML",
+  "PO",
+  "PM",
 ];
 
 const ROLE_BG_COLORS: Record<string, string> = {
-  "Engenharia Dados": "bg-blue-50 border-blue-200",
-  "Engenharia AI": "bg-purple-50 border-purple-200",
-  "Engenharia AI FC": "bg-violet-50 border-violet-200",
-  "Engenharia Software": "bg-green-50 border-green-200",
-  "Engenharia Software FC": "bg-emerald-50 border-emerald-200",
-  "Arquiteto Solucoes": "bg-orange-50 border-orange-200",
-  "Ciencia de Dados": "bg-cyan-50 border-cyan-200",
-  "Designer": "bg-pink-50 border-pink-200",
-  "Product Management": "bg-amber-50 border-amber-200",
+  "Engenheiro IA": "bg-purple-50 border-purple-200",
+  "Engenheiro Dados": "bg-blue-50 border-blue-200",
+  "Desenvolvedor": "bg-green-50 border-green-200",
+  "Engenheiro de ML": "bg-cyan-50 border-cyan-200",
+  "PO": "bg-amber-50 border-amber-200",
+  "PM": "bg-orange-50 border-orange-200",
 };
 
 type Filter = "all" | "allocated" | "partial" | "bench";

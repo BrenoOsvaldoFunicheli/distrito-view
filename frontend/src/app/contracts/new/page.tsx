@@ -27,6 +27,7 @@ export default function NewContractPage() {
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [status, setStatus] = useState("active");
   const [planType, setPlanType] = useState("");
   const [mrr, setMrr] = useState("");
   const [totalValue, setTotalValue] = useState("");
@@ -63,6 +64,7 @@ export default function NewContractPage() {
         name,
         start_date: startDate,
         end_date: endDate,
+        status,
         plan_type: planType || null,
         mrr: mrr ? parseFloat(mrr) : null,
         total_value: totalValue ? parseFloat(totalValue) : null,
@@ -111,14 +113,29 @@ export default function NewContractPage() {
               </select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome do Contrato</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome do Contrato</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <select
+                  id="status"
+                  className="w-full rounded-md border px-3 py-2"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="active">Ativo</option>
+                  <option value="pipeline">Pipeline</option>
+                  <option value="draft">Rascunho</option>
+                </select>
+              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">

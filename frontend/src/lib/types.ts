@@ -146,6 +146,7 @@ export interface CapacityDemandDetail {
   contract_name: string;
   client_name: string;
   quantity: number;
+  fte: number;
   allocation_percentage: number;
   filled: number;
   unfilled: number;

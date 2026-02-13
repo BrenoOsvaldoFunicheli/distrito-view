@@ -82,7 +82,7 @@ def get_upcoming_needs(db: Session, days_ahead: int = 60) -> list[dict]:
         )
         .join(ContractRole.contract)
         .filter(
-            Contract.status.in_(["active", "draft"]),
+            Contract.status.in_(["active", "draft", "pipeline"]),
             Contract.end_date > today,
         )
         .all()
@@ -251,13 +251,12 @@ def get_utilization_stats(db: Session, from_date: date, to_date: date) -> dict:
 
 
 ROLE_ORDER = [
-    "Engenharia Dados", "Engenharia AI", "Engenharia AI FC",
-    "Engenharia Software", "Engenharia Software FC", "Arquiteto Solucoes",
-    "Ciencia de Dados", "Designer", "Product Management",
+    "Engenheiro IA", "Engenheiro Dados", "Desenvolvedor",
+    "Engenheiro de ML", "PO", "PM",
 ]
 
 
-def get_capacity_planning(db: Session, year: int, month: int) -> dict:
+def get_capacity_planning(db: Session, year: int, month: int, company: str | None = None) -> dict:
     month_start = date(year, month, 1)
     _, last_day = monthrange(year, month)
     month_end = date(year, month, last_day)
@@ -272,7 +271,7 @@ def get_capacity_planning(db: Session, year: int, month: int) -> dict:
         )
         .join(ContractRole.contract)
         .filter(
-            Contract.status.in_(["active", "draft"]),
+            Contract.status.in_(["active", "draft", "pipeline"]),
             Contract.start_date <= month_end,
             Contract.end_date >= month_start,
         )
@@ -287,6 +286,7 @@ def get_capacity_planning(db: Session, year: int, month: int) -> dict:
             if a.start_date <= month_end and a.end_date >= month_start
         )
         unfilled = max(0, cr.quantity - filled)
+        fte = cr.quantity * cr.allocation_percentage / 100
 
         if rid not in demand_by_role:
             demand_by_role[rid] = {
@@ -295,12 +295,13 @@ def get_capacity_planning(db: Session, year: int, month: int) -> dict:
                 "demand_slots": 0,
                 "demand_details": [],
             }
-        demand_by_role[rid]["demand_slots"] += cr.quantity
+        demand_by_role[rid]["demand_slots"] += fte
         demand_by_role[rid]["demand_details"].append({
             "contract_id": cr.contract.id,
             "contract_name": cr.contract.name,
             "client_name": cr.contract.client.name,
             "quantity": cr.quantity,
+            "fte": fte,
             "allocation_percentage": cr.allocation_percentage,
             "filled": filled,
             "unfilled": unfilled,
@@ -310,7 +311,7 @@ def get_capacity_planning(db: Session, year: int, month: int) -> dict:
         })
 
     # --- SUPPLY: people grouped by primary role ---
-    people = (
+    people_query = (
         db.query(Person)
         .options(
             joinedload(Person.person_roles).joinedload(PersonRole.role),
@@ -320,8 +321,10 @@ def get_capacity_planning(db: Session, year: int, month: int) -> dict:
             .joinedload(Contract.client),
         )
         .filter(Person.is_active == True)  # noqa: E712
-        .all()
     )
+    if company:
+        people_query = people_query.filter(Person.company == company)
+    people = people_query.all()
 
     supply_by_role: dict[int, list[dict]] = {}
     for person in people:

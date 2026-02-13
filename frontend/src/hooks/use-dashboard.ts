@@ -49,9 +49,11 @@ export function useTimeline(from?: string, to?: string) {
   }>(`/api/v1/dashboard/timeline${query ? `?${query}` : ""}`, api.get);
 }
 
-export function useCapacityPlanning(year: number, month: number) {
+export function useCapacityPlanning(year: number, month: number, company?: string) {
+  const params = new URLSearchParams({ year: String(year), month: String(month) });
+  if (company) params.set("company", company);
   return useSWR<{ data: CapacityPlanningData }>(
-    `/api/v1/dashboard/capacity-planning?year=${year}&month=${month}`,
+    `/api/v1/dashboard/capacity-planning?${params}`,
     api.get,
   );
 }
