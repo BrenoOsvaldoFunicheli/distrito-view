@@ -5,7 +5,7 @@ WORKERS ?= 4
 PID_DIR ?= .pids
 LOG_DIR ?= logs
 
-.PHONY: help install migrate seed backend frontend dev reset-db build backend-prod frontend-prod prod prod-start stop status logs
+.PHONY: help install migrate seed backend frontend dev reset-db build backend-prod frontend-prod prod prod-start start restart stop status logs
 
 help:
 	@echo "Dev targets:"
@@ -24,9 +24,11 @@ help:
 	@echo "  prod           - Build then run backend + frontend in production mode (foreground)"
 	@echo ""
 	@echo "Background (nohup) targets:"
-	@echo "  prod-start     - Build then start backend + frontend in background (PIDs em $(PID_DIR)/, logs em $(LOG_DIR)/)"
-	@echo "  stop           - Mata os processos iniciados via prod-start"
-	@echo "  status         - Mostra status dos processos prod-start"
+	@echo "  prod-start     - Build + start em background (PIDs em $(PID_DIR)/, logs em $(LOG_DIR)/)"
+	@echo "  start          - Apenas start em background (sem build, usa o último build)"
+	@echo "  restart        - stop + start (sem build)"
+	@echo "  stop           - Mata os processos iniciados via prod-start/start"
+	@echo "  status         - Mostra status dos processos"
 	@echo "  logs           - tail -f dos logs de backend e frontend"
 	@echo ""
 	@echo "Override ports:  make prod BACKEND_PORT=8001 FRONTEND_PORT=3001"
@@ -71,13 +73,18 @@ ROOT_DIR := $(CURDIR)
 ABS_PID_DIR := $(ROOT_DIR)/$(PID_DIR)
 ABS_LOG_DIR := $(ROOT_DIR)/$(LOG_DIR)
 
-prod-start: build
+prod-start: build start
+
+start:
 	@mkdir -p "$(ABS_PID_DIR)" "$(ABS_LOG_DIR)"
 	@if [ -f "$(ABS_PID_DIR)/backend.pid" ] && kill -0 $$(cat "$(ABS_PID_DIR)/backend.pid") 2>/dev/null; then \
-		echo "backend já rodando (PID $$(cat $(ABS_PID_DIR)/backend.pid)). Use 'make stop' antes."; exit 1; \
+		echo "backend já rodando (PID $$(cat $(ABS_PID_DIR)/backend.pid)). Use 'make stop' ou 'make restart'."; exit 1; \
 	fi
 	@if [ -f "$(ABS_PID_DIR)/frontend.pid" ] && kill -0 $$(cat "$(ABS_PID_DIR)/frontend.pid") 2>/dev/null; then \
-		echo "frontend já rodando (PID $$(cat $(ABS_PID_DIR)/frontend.pid)). Use 'make stop' antes."; exit 1; \
+		echo "frontend já rodando (PID $$(cat $(ABS_PID_DIR)/frontend.pid)). Use 'make stop' ou 'make restart'."; exit 1; \
+	fi
+	@if [ ! -d frontend/.next ]; then \
+		echo "frontend/.next não existe — rode 'make build' ou 'make prod-start' antes."; exit 1; \
 	fi
 	@echo "Subindo backend (porta $(BACKEND_PORT))..."
 	@cd backend && nohup uv run uvicorn app.main:app --host 0.0.0.0 --port $(BACKEND_PORT) --workers $(WORKERS) >> "$(ABS_LOG_DIR)/backend.log" 2>&1 & echo $$! > "$(ABS_PID_DIR)/backend.pid"
@@ -87,7 +94,11 @@ prod-start: build
 	@echo "  PID $$(cat $(ABS_PID_DIR)/frontend.pid) -> $(LOG_DIR)/frontend.log"
 	@echo ""
 	@echo "Pronto. backend: http://localhost:$(BACKEND_PORT)  frontend: http://localhost:$(FRONTEND_PORT)"
-	@echo "Use 'make status', 'make logs' ou 'make stop'."
+	@echo "Use 'make status', 'make logs', 'make stop' ou 'make restart'."
+
+restart:
+	@$(MAKE) stop
+	@$(MAKE) start
 
 stop:
 	@for name in backend frontend; do \
