@@ -1,9 +1,16 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
 from app.schemas.person import PersonCreate, PersonResponse, PersonUpdate
 from app.services import allocation_service, person_service
+
+
+class TerminatePersonRequest(BaseModel):
+    terminated_at: date
 
 router = APIRouter(prefix="/people", tags=["people"])
 
@@ -47,6 +54,20 @@ def get_person_allocations(person_id: int, db: Session = Depends(get_db)):
     return [allocation_service._build_response_dict(a) for a in allocs]
 
 
+@router.post("/{person_id}/terminate", response_model=PersonResponse)
+def terminate_person(
+    person_id: int, data: TerminatePersonRequest, db: Session = Depends(get_db)
+):
+    person = person_service.terminate_person(db, person_id, data.terminated_at)
+    return _to_response(person)
+
+
+@router.post("/{person_id}/reactivate", response_model=PersonResponse)
+def reactivate_person(person_id: int, db: Session = Depends(get_db)):
+    person = person_service.reactivate_person(db, person_id)
+    return _to_response(person)
+
+
 def _to_response(person) -> dict:
     return {
         "id": person.id,
@@ -54,6 +75,7 @@ def _to_response(person) -> dict:
         "email": person.email,
         "company": person.company,
         "is_active": person.is_active,
+        "terminated_at": person.terminated_at,
         "notes": person.notes,
         "roles": [
             {"role": pr.role, "is_primary": pr.is_primary}

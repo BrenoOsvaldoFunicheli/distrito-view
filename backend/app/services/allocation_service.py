@@ -112,13 +112,28 @@ def _build_response_dict(alloc: Allocation) -> dict:
     }
 
 
-def create_allocation(db: Session, data: AllocationCreate) -> dict:
-    errors = validate_person_capacity(
-        db, data.person_id, data.start_date, data.end_date, data.allocation_percentage
-    )
-    if errors:
-        raise HTTPException(status_code=422, detail={"errors": errors})
+def _validate_within_role_window(
+    db: Session, contract_role_id: int, start: date, end: date
+) -> None:
+    cr = db.query(ContractRole).filter(ContractRole.id == contract_role_id).first()
+    if not cr:
+        raise HTTPException(status_code=404, detail="Contract role not found")
+    if cr.start_date is not None and start < cr.start_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Alocação inicia antes da vaga ({cr.start_date}).",
+        )
+    if cr.end_date is not None and end > cr.end_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Alocação termina depois da vaga ({cr.end_date}).",
+        )
 
+
+def create_allocation(db: Session, data: AllocationCreate) -> dict:
+    _validate_within_role_window(
+        db, data.contract_role_id, data.start_date, data.end_date
+    )
     alloc = Allocation(**data.model_dump())
     db.add(alloc)
     db.commit()
@@ -132,13 +147,8 @@ def update_allocation(db: Session, allocation_id: int, data: AllocationUpdate) -
 
     new_start = update_data.get("start_date", alloc.start_date)
     new_end = update_data.get("end_date", alloc.end_date)
-    new_pct = update_data.get("allocation_percentage", alloc.allocation_percentage)
 
-    errors = validate_person_capacity(
-        db, alloc.person_id, new_start, new_end, new_pct, exclude_allocation_id=allocation_id
-    )
-    if errors:
-        raise HTTPException(status_code=422, detail={"errors": errors})
+    _validate_within_role_window(db, alloc.contract_role_id, new_start, new_end)
 
     for key, value in update_data.items():
         setattr(alloc, key, value)

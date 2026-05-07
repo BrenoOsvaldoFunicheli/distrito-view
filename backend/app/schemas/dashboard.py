@@ -11,6 +11,10 @@ class UnallocatedPerson(BaseModel):
     current_allocation_ends: date | None
     current_percentage: int
     days_until_unallocated: int | None
+    next_allocation_start: date | None = None
+    next_allocation_contract_name: str | None = None
+    next_allocation_client_name: str | None = None
+    next_allocation_role_name: str | None = None
 
 
 class UpcomingNeed(BaseModel):
@@ -25,6 +29,7 @@ class UpcomingNeed(BaseModel):
     filled_quantity: int
     allocation_percentage: int
     days_until_start: int
+    is_future_contract: bool = False
 
 
 class AllocationSummary(BaseModel):
@@ -49,4 +54,5 @@ class UtilizationStats(BaseModel):
     fully_allocated: int
     partially_allocated: int
     on_bench: int
+    provisioned: int = 0
     average_utilization: float

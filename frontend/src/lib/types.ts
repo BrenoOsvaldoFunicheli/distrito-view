@@ -28,6 +28,7 @@ export interface Person {
   email: string;
   company: string;
   is_active: boolean;
+  terminated_at: string | null;
   notes: string | null;
   roles: PersonRoleInfo[];
   created_at: string;
@@ -39,6 +40,8 @@ export interface ContractRole {
   role: Role;
   allocation_percentage: number;
   quantity: number;
+  start_date: string | null;
+  end_date: string | null;
   notes: string | null;
 }
 
@@ -84,6 +87,10 @@ export interface UnallocatedPerson {
   current_allocation_ends: string | null;
   current_percentage: number;
   days_until_unallocated: number | null;
+  next_allocation_start: string | null;
+  next_allocation_contract_name: string | null;
+  next_allocation_client_name: string | null;
+  next_allocation_role_name: string | null;
 }
 
 export interface UpcomingNeed {
@@ -98,6 +105,7 @@ export interface UpcomingNeed {
   filled_quantity: number;
   allocation_percentage: number;
   days_until_start: number;
+  is_future_contract: boolean;
 }
 
 export interface UtilizationStats {
@@ -105,6 +113,7 @@ export interface UtilizationStats {
   fully_allocated: number;
   partially_allocated: number;
   on_bench: number;
+  provisioned: number;
   average_utilization: number;
 }
 
@@ -177,9 +186,11 @@ export interface CapacityRoleSummary {
   role_id: number;
   role_name: string;
   demand_slots: number;
+  unfilled_slots: number;
   demand_details: CapacityDemandDetail[];
   supply_allocated: number;
   supply_available: number;
+  supply_bench: number;
   supply_details: CapacitySupplyDetail[];
   gap: number;
 }
@@ -197,4 +208,81 @@ export interface CapacityPlanningData {
   month: string;
   roles: CapacityRoleSummary[];
   totals: CapacityTotals;
+}
+
+export type ProposalStage = string;
+
+export interface ProposalStageDef {
+  id: number;
+  key: string;
+  label: string;
+  position: number;
+  is_terminal: boolean;
+  is_protected: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string | null;
+  is_active: boolean;
+  is_admin: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type FarolColor = "none" | "green" | "yellow" | "red";
+export type FarolKind = "manual" | "calculated_allocation";
+
+export interface FarolCriterion {
+  id: number;
+  label: string;
+  kind: FarolKind;
+  show_color: boolean;
+  show_text: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FarolBoardClient {
+  id: number;
+  name: string;
+}
+
+export interface FarolBoardCell {
+  criterion_id: number;
+  client_id: number;
+  color: FarolColor;
+  text_value: string | null;
+  notes: string | null;
+  computed: boolean;
+}
+
+export interface FarolBoard {
+  criteria: FarolCriterion[];
+  clients: FarolBoardClient[];
+  cells: FarolBoardCell[];
+}
+
+export interface Proposal {
+  id: number;
+  title: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  estimated_value: number | null;
+  expected_close_date: string | null;
+  expected_start_date: string | null;
+  source: string | null;
+  notes: string | null;
+  stage: ProposalStage;
+  lost_reason: string | null;
+  position: number;
+  client: Client | null;
+  client_id: number | null;
+  contract_id: number | null;
+  created_at: string;
+  updated_at: string;
 }

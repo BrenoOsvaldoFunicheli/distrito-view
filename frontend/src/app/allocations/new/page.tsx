@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,8 @@ function NewAllocationForm() {
         roleName: cr.role.name,
         contractStartDate: c.start_date,
         contractEndDate: c.end_date,
+        roleStartDate: cr.start_date,
+        roleEndDate: cr.end_date,
       })),
     ) || [];
 
@@ -47,18 +50,44 @@ function NewAllocationForm() {
     (cr) => String(cr.id) === contractRoleId,
   );
 
+  // Janela efetiva: vaga pode ter datas próprias; senão usa as do contrato
+  // Se a janela da vaga for inválida (end <= start), cai pra janela do contrato.
+  const roleWindowValid =
+    selectedCR?.roleStartDate &&
+    selectedCR?.roleEndDate &&
+    selectedCR.roleEndDate > selectedCR.roleStartDate;
+  const effectiveStart = roleWindowValid
+    ? selectedCR!.roleStartDate!
+    : selectedCR?.contractStartDate;
+  const effectiveEnd = roleWindowValid
+    ? selectedCR!.roleEndDate!
+    : selectedCR?.contractEndDate;
+
   // Auto-fill dates from contract when selecting a contract role
   const handleContractRoleChange = (value: string) => {
     setContractRoleId(value);
     const cr = contractRoleOptions.find((c) => String(c.id) === value);
     if (cr) {
-      if (!startDate) setStartDate(cr.contractStartDate);
-      if (!endDate) setEndDate(cr.contractEndDate);
+      const validRoleWindow =
+        cr.roleStartDate &&
+        cr.roleEndDate &&
+        cr.roleEndDate > cr.roleStartDate;
+      const start = validRoleWindow ? cr.roleStartDate! : cr.contractStartDate;
+      const end = validRoleWindow ? cr.roleEndDate! : cr.contractEndDate;
+      if (!startDate) setStartDate(start);
+      if (!endDate) setEndDate(end);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submit = async (start: string, end: string) => {
+    if (!start || !end) {
+      setError("Preencha as datas de início e fim.");
+      return;
+    }
+    if (end <= start) {
+      setError("Data fim deve ser posterior à data início.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -66,8 +95,8 @@ function NewAllocationForm() {
         person_id: parseInt(personId),
         contract_role_id: parseInt(contractRoleId),
         allocation_percentage: parseInt(percentage),
-        start_date: startDate,
-        end_date: endDate,
+        start_date: start,
+        end_date: end,
         notes: notes || null,
       });
       router.push("/allocations");
@@ -76,6 +105,21 @@ function NewAllocationForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submit(startDate, endDate);
+  };
+
+  const handleAllocateForProjectDuration = () => {
+    if (!effectiveStart || !effectiveEnd) {
+      setError("Selecione uma vaga antes de usar este atalho.");
+      return;
+    }
+    setStartDate(effectiveStart);
+    setEndDate(effectiveEnd);
+    setError("");
   };
 
   return (
@@ -188,9 +232,25 @@ function NewAllocationForm() {
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={loading}>
                 {loading ? "Salvando..." : "Criar Alocacao"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleAllocateForProjectDuration}
+                disabled={loading || !effectiveStart || !effectiveEnd}
+                title={
+                  effectiveStart && effectiveEnd
+                    ? `${new Date(effectiveStart).toLocaleDateString(
+                        "pt-BR",
+                      )} → ${new Date(effectiveEnd).toLocaleDateString("pt-BR")}`
+                    : undefined
+                }
+              >
+                <CalendarClock className="mr-2 h-4 w-4" />
+                Alocar pelo período do projeto
               </Button>
               <Button
                 type="button"

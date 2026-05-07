@@ -15,8 +15,7 @@ ROLES = [
     ("Engenheiro Dados", "Engenheiro de Dados"),
     ("Desenvolvedor", "Desenvolvedor de Software"),
     ("Engenheiro de ML", "Engenheiro de Machine Learning"),
-    ("PO", "Product Owner"),
-    ("PM", "Project Manager"),
+    ("PM/PO", "Product Manager / Product Owner"),
 ]
 
 CONTRACTS_DATA = [
@@ -60,7 +59,7 @@ CONTRACTS_DATA = [
         "end_date": date(2026, 6, 30),
         "payment_method": "Mensal",
         "notes": None,
-        "roles": {"Engenheiro IA": 1, "Engenheiro Dados": 1, "PO": 1},
+        "roles": {"Engenheiro IA": 1, "Engenheiro Dados": 1, "PM/PO": 1},
     },
     {
         "client": "BANCO PINE",
@@ -102,7 +101,7 @@ CONTRACTS_DATA = [
         "end_date": date(2026, 9, 18),
         "payment_method": "Mensal",
         "notes": None,
-        "roles": {"Engenheiro IA": 1, "Engenheiro Dados": 1, "PO": 0.5},
+        "roles": {"Engenheiro IA": 1, "Engenheiro Dados": 1, "PM/PO": 0.5},
     },
     {
         "client": "COMGAS - COMPASS",
@@ -116,7 +115,7 @@ CONTRACTS_DATA = [
         "end_date": date(2026, 5, 31),
         "payment_method": "Parcelado",
         "notes": None,
-        "roles": {"Engenheiro IA": 1, "Engenheiro Dados": 1, "PO": 1},
+        "roles": {"Engenheiro IA": 1, "Engenheiro Dados": 1, "PM/PO": 1},
     },
     {
         "client": "BANCO BMG",
@@ -130,7 +129,7 @@ CONTRACTS_DATA = [
         "end_date": date(2026, 10, 21),
         "payment_method": "Parcelado",
         "notes": None,
-        "roles": {"Engenheiro IA": 1, "Engenheiro de ML": 0.5, "PO": 0.5},
+        "roles": {"Engenheiro IA": 1, "Engenheiro de ML": 0.5, "PM/PO": 0.5},
     },
     {
         "client": "Yara Fertilizantes",
@@ -144,7 +143,7 @@ CONTRACTS_DATA = [
         "end_date": date(2026, 2, 28),
         "payment_method": "Entrega",
         "notes": None,
-        "roles": {"Engenheiro IA": 1, "PO": 1},
+        "roles": {"Engenheiro IA": 1, "PM/PO": 1},
     },
     {
         "client": "JSL",
@@ -158,7 +157,7 @@ CONTRACTS_DATA = [
         "end_date": date(2026, 2, 9),
         "payment_method": "Parcelado",
         "notes": None,
-        "roles": {"Engenheiro IA": 2, "PO": 1},
+        "roles": {"Engenheiro IA": 2, "PM/PO": 1},
     },
     {
         "client": "ALPER SEGUROS",
@@ -186,7 +185,7 @@ CONTRACTS_DATA = [
         "end_date": date(2026, 7, 1),
         "payment_method": "Parcelado",
         "notes": None,
-        "roles": {"Engenheiro Dados": 1, "Engenheiro de ML": 2, "PO": 1},
+        "roles": {"Engenheiro Dados": 1, "Engenheiro de ML": 2, "PM/PO": 1},
     },
     {
         "client": "ALMAP BBDO",
@@ -246,8 +245,7 @@ CONTRACTS_DATA = [
             "Engenheiro IA": 1,
             "Engenheiro Dados": 1,
             "Desenvolvedor": 1,
-            "PO": 0.5,
-            "PM": 0.5,
+            "PM/PO": 1,
         },
     },
     {
@@ -262,7 +260,7 @@ CONTRACTS_DATA = [
         "end_date": date(2026, 3, 31),
         "payment_method": "Mensal",
         "notes": None,
-        "roles": {"Engenheiro IA": 1, "PO": 0.5},
+        "roles": {"Engenheiro IA": 1, "PM/PO": 0.5},
     },
     {
         "client": "BANCO PINE",
@@ -280,7 +278,7 @@ CONTRACTS_DATA = [
             "Engenheiro IA": 1,
             "Engenheiro Dados": 1,
             "Engenheiro de ML": 1,
-            "PO": 1,
+            "PM/PO": 1,
         },
     },
     {
@@ -295,7 +293,7 @@ CONTRACTS_DATA = [
         "end_date": date(2026, 4, 25),
         "payment_method": "A vista",
         "notes": None,
-        "roles": {"Engenheiro IA": 1, "Engenheiro Dados": 1, "PO": 1},
+        "roles": {"Engenheiro IA": 1, "Engenheiro Dados": 1, "PM/PO": 1},
     },
 ]
 
@@ -373,33 +371,33 @@ PEOPLE_DATA = [
      "roles": ["Desenvolvedor"], "primary": "Desenvolvedor", "company": "Dojo"},
     # === DISTRITO - PO (7) ===
     {"name": "Daniel Mischiatti", "email": "daniel.mischiatti@distrito.me",
-     "roles": ["PO"], "primary": "PO", "company": "Distrito"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Distrito"},
     {"name": "Roberta Senda", "email": "roberta.senda@distrito.me",
-     "roles": ["PO"], "primary": "PO", "company": "Distrito"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Distrito"},
     {"name": "Bruno Cricenti", "email": "bruno.cricenti@distrito.me",
-     "roles": ["PO"], "primary": "PO", "company": "Distrito"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Distrito"},
     {"name": "Vinicius Hessel", "email": "vinicius.hessel@distrito.me",
-     "roles": ["PO"], "primary": "PO", "company": "Distrito"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Distrito"},
     {"name": "Nathalia Souza", "email": "nathalia.souza@distrito.me",
-     "roles": ["PO"], "primary": "PO", "company": "Distrito"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Distrito"},
     {"name": "Thais Chehab", "email": "thais.chehab@distrito.me",
-     "roles": ["PO"], "primary": "PO", "company": "Distrito"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Distrito"},
     {"name": "Rafaella Costa", "email": "rafaella.costa@distrito.me",
-     "roles": ["PO"], "primary": "PO", "company": "Distrito"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Distrito"},
     # === DOJO - PO ===
     {"name": "Fabio", "email": "fabio@dojo.do",
-     "roles": ["PO"], "primary": "PO", "company": "Dojo"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Dojo"},
     {"name": "Priscila", "email": "priscila@dojo.do",
-     "roles": ["PO"], "primary": "PO", "company": "Dojo"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Dojo"},
     {"name": "Rafael", "email": "rafael@dojo.do",
-     "roles": ["PO"], "primary": "PO", "company": "Dojo"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Dojo"},
     # === DOJO - PM ===
     {"name": "Ricardo", "email": "ricardo@dojo.do",
-     "roles": ["PM"], "primary": "PM", "company": "Dojo"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Dojo"},
     {"name": "Kewin", "email": "kewin@dojo.do",
-     "roles": ["PM"], "primary": "PM", "company": "Dojo"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Dojo"},
     {"name": "Carlos", "email": "carlos@dojo.do",
-     "roles": ["PM"], "primary": "PM", "company": "Dojo"},
+     "roles": ["PM/PO"], "primary": "PM/PO", "company": "Dojo"},
 ]
 
 

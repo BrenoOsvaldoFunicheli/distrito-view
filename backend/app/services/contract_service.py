@@ -1,9 +1,38 @@
+from datetime import date
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.contract import Contract
 from app.models.contract_role import ContractRole
 from app.schemas.contract import ContractCreate, ContractRoleCreate, ContractRoleUpdate, ContractUpdate
+
+
+def _validate_role_window(
+    contract: Contract, start: date | None, end: date | None
+) -> None:
+    """Both nulls = vaga vale pelo contrato inteiro. Caso contrário exige ambos
+    e a janela deve estar dentro do período do contrato."""
+    if start is None and end is None:
+        return
+    if start is None or end is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Informe ambas as datas da vaga ou nenhuma.",
+        )
+    if end <= start:
+        raise HTTPException(
+            status_code=400,
+            detail="Data final da vaga deve ser posterior à inicial.",
+        )
+    if start < contract.start_date or end > contract.end_date:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Janela da vaga ({start} a {end}) deve estar dentro do contrato "
+                f"({contract.start_date} a {contract.end_date})."
+            ),
+        )
 
 
 def list_contracts(
@@ -45,6 +74,7 @@ def create_contract(db: Session, data: ContractCreate) -> Contract:
     db.add(contract)
     db.flush()
     for role_data in roles_data:
+        _validate_role_window(contract, role_data.start_date, role_data.end_date)
         cr = ContractRole(contract_id=contract.id, **role_data.model_dump())
         db.add(cr)
     db.commit()
@@ -68,7 +98,8 @@ def delete_contract(db: Session, contract_id: int) -> None:
 def add_contract_role(
     db: Session, contract_id: int, data: ContractRoleCreate
 ) -> ContractRole:
-    get_contract(db, contract_id)  # ensure exists
+    contract = get_contract(db, contract_id)
+    _validate_role_window(contract, data.start_date, data.end_date)
     cr = ContractRole(contract_id=contract_id, **data.model_dump())
     db.add(cr)
     db.commit()
@@ -86,8 +117,12 @@ def update_contract_role(
     )
     if not cr:
         raise HTTPException(status_code=404, detail="Contract role not found")
-    for key, value in data.model_dump(exclude_unset=True).items():
+    payload = data.model_dump(exclude_unset=True)
+    for key, value in payload.items():
         setattr(cr, key, value)
+    if "start_date" in payload or "end_date" in payload:
+        contract = get_contract(db, contract_id)
+        _validate_role_window(contract, cr.start_date, cr.end_date)
     db.commit()
     db.refresh(cr)
     return cr

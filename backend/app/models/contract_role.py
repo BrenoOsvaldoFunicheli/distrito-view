@@ -1,4 +1,6 @@
-from sqlalchemy import CheckConstraint, ForeignKey, Integer, String
+from datetime import date
+
+from sqlalchemy import CheckConstraint, Date, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -18,6 +20,8 @@ class ContractRole(Base):
     role_id: Mapped[int] = mapped_column(Integer, ForeignKey("roles.id"), nullable=False)
     allocation_percentage: Mapped[int] = mapped_column(Integer, nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notes: Mapped[str | None] = mapped_column(String)
 
     contract: Mapped["Contract"] = relationship(back_populates="contract_roles")  # noqa: F821

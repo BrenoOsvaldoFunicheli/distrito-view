@@ -1,0 +1,65 @@
+from datetime import datetime
+
+from pydantic import BaseModel
+
+
+class FarolCriterionCreate(BaseModel):
+    label: str
+    kind: str = "manual"
+    show_color: bool = True
+    show_text: bool = False
+
+
+class FarolCriterionUpdate(BaseModel):
+    label: str | None = None
+    kind: str | None = None
+    show_color: bool | None = None
+    show_text: bool | None = None
+
+
+class FarolCriterionReorderItem(BaseModel):
+    id: int
+    position: int
+
+
+class FarolCriterionReorderRequest(BaseModel):
+    items: list[FarolCriterionReorderItem]
+
+
+class FarolCriterionResponse(BaseModel):
+    id: int
+    label: str
+    kind: str
+    show_color: bool
+    show_text: bool
+    position: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FarolCellUpdate(BaseModel):
+    color: str | None = None
+    text_value: str | None = None
+    notes: str | None = None
+
+
+class FarolBoardClient(BaseModel):
+    id: int
+    name: str
+
+
+class FarolBoardCell(BaseModel):
+    criterion_id: int
+    client_id: int
+    color: str
+    text_value: str | None
+    notes: str | None
+    computed: bool = False
+
+
+class FarolBoardResponse(BaseModel):
+    criteria: list[FarolCriterionResponse]
+    clients: list[FarolBoardClient]
+    cells: list[FarolBoardCell]

@@ -4,10 +4,13 @@ import { ROLE_COLORS } from "@/lib/constants";
 interface RoleBadgeProps {
   name: string;
   isPrimary?: boolean;
+  muted?: boolean;
 }
 
-export function RoleBadge({ name, isPrimary }: RoleBadgeProps) {
-  const colorClass = ROLE_COLORS[name] || "bg-gray-100 text-gray-800";
+export function RoleBadge({ name, isPrimary, muted }: RoleBadgeProps) {
+  const colorClass = muted
+    ? "bg-muted text-muted-foreground"
+    : ROLE_COLORS[name] || "bg-gray-100 text-gray-800";
   return (
     <Badge variant="secondary" className={`${colorClass} text-xs`}>
       {name}

@@ -3,8 +3,7 @@ export const ROLE_COLORS: Record<string, string> = {
   "Engenheiro Dados": "bg-blue-100 text-blue-800",
   "Desenvolvedor": "bg-green-100 text-green-800",
   "Engenheiro de ML": "bg-cyan-100 text-cyan-800",
-  "PO": "bg-amber-100 text-amber-800",
-  "PM": "bg-orange-100 text-orange-800",
+  "PM/PO": "bg-amber-100 text-amber-800",
 };
 
 export const STATUS_COLORS: Record<string, string> = {

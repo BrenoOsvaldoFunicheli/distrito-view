@@ -1,10 +1,19 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil, UserMinus, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -17,6 +26,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { RoleBadge } from "@/components/shared/role-badge";
 import { PercentageBadge } from "@/components/shared/percentage-badge";
 import { usePerson, usePersonAllocations } from "@/hooks/use-people";
+import { api } from "@/lib/api";
 
 export default function PersonDetailPage({
   params,
@@ -25,8 +35,45 @@ export default function PersonDetailPage({
 }) {
   const { id } = use(params);
   const personId = parseInt(id);
-  const { data: person } = usePerson(personId);
-  const { data: allocations } = usePersonAllocations(personId);
+  const { data: person, mutate: mutatePerson } = usePerson(personId);
+  const { data: allocations, mutate: mutateAllocations } =
+    usePersonAllocations(personId);
+  const [terminateOpen, setTerminateOpen] = useState(false);
+  const [terminationDate, setTerminationDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [terminating, setTerminating] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleTerminate = async () => {
+    setTerminating(true);
+    setError("");
+    try {
+      await api.post(`/api/v1/people/${personId}/terminate`, {
+        terminated_at: terminationDate,
+      });
+      await Promise.all([mutatePerson(), mutateAllocations()]);
+      setTerminateOpen(false);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erro ao demitir");
+    } finally {
+      setTerminating(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!confirm("Reativar esta pessoa?")) return;
+    setReactivating(true);
+    try {
+      await api.post(`/api/v1/people/${personId}/reactivate`, {});
+      await mutatePerson();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Erro ao reativar");
+    } finally {
+      setReactivating(false);
+    }
+  };
 
   if (!person) {
     return <div className="animate-pulse h-64 bg-muted rounded-lg" />;
@@ -57,9 +104,34 @@ export default function PersonDetailPage({
         title={person.name}
         description={person.email}
         actions={
-          <Link href={`/allocations/new?person_id=${person.id}`}>
-            <Button>Alocar em Contrato</Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href={`/people/${person.id}/edit`}>
+              <Button variant="outline">
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+            </Link>
+            {person.is_active ? (
+              <Button
+                variant="outline"
+                onClick={() => setTerminateOpen(true)}
+                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+              >
+                <UserMinus className="mr-2 h-4 w-4" />
+                Demitir
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={handleReactivate}
+                disabled={reactivating}
+                className="text-green-700 hover:bg-green-50"
+              >
+                <UserCheck className="mr-2 h-4 w-4" />
+                {reactivating ? "Reativando..." : "Reativar"}
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -113,6 +185,12 @@ export default function PersonDetailPage({
             >
               {person.is_active ? "Ativo" : "Inativo"}
             </span>
+            {!person.is_active && person.terminated_at && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Desligado em{" "}
+                {new Date(person.terminated_at).toLocaleDateString("pt-BR")}
+              </p>
+            )}
             {person.notes && (
               <p className="mt-2 text-sm text-muted-foreground">
                 {person.notes}
@@ -121,6 +199,46 @@ export default function PersonDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={terminateOpen} onOpenChange={setTerminateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Demitir {person.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Pessoa será marcada como inativa. Alocações em curso terão sua data
+              fim ajustada para a data de saída e alocações futuras serão removidas.
+              Histórico de alocações passadas é preservado.
+            </p>
+            <div className="space-y-1">
+              <Label>Data de saída</Label>
+              <Input
+                type="date"
+                value={terminationDate}
+                onChange={(e) => setTerminationDate(e.target.value)}
+              />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setTerminateOpen(false)}
+              disabled={terminating}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleTerminate}
+              disabled={terminating || !terminationDate}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {terminating ? "Confirmando..." : "Confirmar demissão"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>

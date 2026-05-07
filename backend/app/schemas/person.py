@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -37,6 +37,7 @@ class PersonResponse(BaseModel):
     email: str
     company: str
     is_active: bool
+    terminated_at: date | None = None
     notes: str | None
     roles: list[PersonRoleInfo]
     created_at: datetime

@@ -10,6 +10,8 @@ class ContractRoleCreate(BaseModel):
     role_id: int
     allocation_percentage: int
     quantity: int = 1
+    start_date: date | None = None
+    end_date: date | None = None
     notes: str | None = None
 
 
@@ -17,6 +19,8 @@ class ContractRoleUpdate(BaseModel):
     role_id: int | None = None
     allocation_percentage: int | None = None
     quantity: int | None = None
+    start_date: date | None = None
+    end_date: date | None = None
     notes: str | None = None
 
 
@@ -25,6 +29,8 @@ class ContractRoleResponse(BaseModel):
     role: RoleResponse
     allocation_percentage: int
     quantity: int
+    start_date: date | None
+    end_date: date | None
     notes: str | None
 
     model_config = {"from_attributes": True}

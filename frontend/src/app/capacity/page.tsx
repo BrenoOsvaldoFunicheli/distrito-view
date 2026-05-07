@@ -2,22 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import {
-  ChevronLeft,
-  ChevronRight,
-  TrendingUp,
-  Users,
-  UserCheck,
-  AlertTriangle,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
-import { StatsCard } from "@/components/shared/stats-card";
 import { RoleBadge } from "@/components/shared/role-badge";
+import {
+  CapacityFilterBar,
+  type CapacityFilter,
+} from "@/components/dashboard/capacity-filter-bar";
+import { CapacitySummaryCards } from "@/components/dashboard/capacity-summary-cards";
 import { useCapacityPlanning } from "@/hooks/use-dashboard";
 import type { CapacityRoleSummary } from "@/lib/types";
 
@@ -27,29 +20,18 @@ function fmtNum(n: number): string {
 
 export default function CapacityPlanningPage() {
   const today = new Date();
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth() + 1);
-  const [company, setCompany] = useState<string>("");
-
-  const { data, isLoading } = useCapacityPlanning(year, month, company || undefined);
-  const capacity = data?.data;
-
-  const goToMonth = (delta: number) => {
-    const d = new Date(year, month - 1 + delta, 1);
-    setYear(d.getFullYear());
-    setMonth(d.getMonth() + 1);
-  };
-
-  const resetToToday = () => {
-    setYear(today.getFullYear());
-    setMonth(today.getMonth() + 1);
-  };
-
-  const monthLabel = format(new Date(year, month - 1), "MMMM yyyy", {
-    locale: ptBR,
+  const [filter, setFilter] = useState<CapacityFilter>({
+    year: today.getFullYear(),
+    month: today.getMonth() + 1,
+    company: "",
   });
-  const capitalizedMonth =
-    monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+
+  const { data, isLoading } = useCapacityPlanning(
+    filter.year,
+    filter.month,
+    filter.company || undefined,
+  );
+  const capacity = data?.data;
 
   return (
     <div className="space-y-6">
@@ -58,84 +40,11 @@ export default function CapacityPlanningPage() {
         description="Confronto entre demanda dos contratos e oferta de pessoas"
       />
 
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="sm" onClick={() => goToMonth(-1)}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={resetToToday}>
-            Hoje
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => goToMonth(1)}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <span className="text-lg font-semibold">{capitalizedMonth}</span>
-        <select
-          value={company}
-          onChange={(e) => setCompany(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">Todas empresas</option>
-          <option value="Distrito">Distrito</option>
-          <option value="Dojo">Dojo</option>
-          <option value="FCamara">FCamara</option>
-        </select>
-      </div>
+      <CapacityFilterBar value={filter} onChange={setFilter} />
+      <CapacitySummaryCards capacity={capacity} isLoading={isLoading} />
 
-      {isLoading && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />
-          ))}
-        </div>
-      )}
-
-      {/* Summary Cards */}
-      {capacity && (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatsCard
-              title="Precisamos"
-              value={`${fmtNum(capacity.totals.total_demand)} vagas`}
-              icon={TrendingUp}
-            />
-            <StatsCard
-              title="Temos"
-              value={`${capacity.totals.total_people} pessoas`}
-              icon={Users}
-            />
-            <StatsCard
-              title="Alocados"
-              value={capacity.totals.total_allocated}
-              icon={UserCheck}
-              description={`${capacity.totals.total_bench} no bench`}
-            />
-            <StatsCard
-              title="Gap"
-              value={(() => {
-                const gap = capacity.totals.total_demand - capacity.totals.total_people;
-                return gap > 0 ? `+${fmtNum(gap)}` : fmtNum(gap);
-              })()}
-              icon={AlertTriangle}
-              description={
-                capacity.totals.total_demand - capacity.totals.total_people > 0
-                  ? "Faltam pessoas"
-                  : "Equipe suficiente"
-              }
-            />
-          </div>
-
-          {/* Demand by Contract */}
-          <ContractDemandTable roles={capacity.roles} />
-
-          {capacity.roles.length === 0 && (
-            <p className="py-12 text-center text-sm text-muted-foreground">
-              Nenhum dado de capacidade para este mes.
-            </p>
-          )}
-        </>
+      {capacity && capacity.roles.length > 0 && (
+        <ContractDemandTable roles={capacity.roles} />
       )}
     </div>
   );
@@ -221,9 +130,9 @@ function ContractDemandTable({ roles }: { roles: CapacityRoleSummary[] }) {
                     <td className="px-3 py-2 text-muted-foreground">{c.client_name}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-1">
-                        {c.roles.map((r) => (
+                        {c.roles.map((r, idx) => (
                           <RoleBadge
-                            key={r.role_name}
+                            key={`${r.role_name}-${idx}`}
                             name={`${r.role_name} (${fmtNum(r.fte)})`}
                           />
                         ))}

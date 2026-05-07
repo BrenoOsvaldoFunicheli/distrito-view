@@ -17,6 +17,8 @@ interface RoleRequirement {
   role_id: number;
   allocation_percentage: number;
   quantity: number;
+  start_date?: string;
+  end_date?: string;
 }
 
 export default function NewContractPage() {
@@ -48,7 +50,7 @@ export default function NewContractPage() {
     setRoleReqs(roleReqs.filter((_, i) => i !== index));
   };
 
-  const updateRole = (index: number, field: string, value: number) => {
+  const updateRole = (index: number, field: string, value: number | string) => {
     const updated = [...roleReqs];
     updated[index] = { ...updated[index], [field]: value };
     setRoleReqs(updated);
@@ -70,7 +72,13 @@ export default function NewContractPage() {
         total_value: totalValue ? parseFloat(totalValue) : null,
         payment_method: paymentMethod || null,
         notes: notes || null,
-        roles: roleReqs,
+        roles: roleReqs.map((r) => ({
+          role_id: r.role_id,
+          allocation_percentage: r.allocation_percentage,
+          quantity: r.quantity,
+          start_date: r.start_date || null,
+          end_date: r.end_date || null,
+        })),
       });
       router.push("/contracts");
     } catch (err) {
@@ -214,55 +222,80 @@ export default function NewContractPage() {
                 </Button>
               </div>
               {roleReqs.map((req, index) => (
-                <div key={index} className="flex items-center gap-2 rounded border p-2">
-                  <select
-                    className="flex-1 rounded border px-2 py-1 text-sm"
-                    value={req.role_id}
-                    onChange={(e) =>
-                      updateRole(index, "role_id", parseInt(e.target.value))
-                    }
-                  >
-                    {roles?.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name}
-                      </option>
-                    ))}
-                  </select>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="100"
-                    className="w-20"
-                    placeholder="%"
-                    value={req.allocation_percentage}
-                    onChange={(e) =>
-                      updateRole(
-                        index,
-                        "allocation_percentage",
-                        parseInt(e.target.value),
-                      )
-                    }
-                  />
-                  <span className="text-sm text-muted-foreground">%</span>
-                  <Input
-                    type="number"
-                    min="1"
-                    className="w-16"
-                    placeholder="Qty"
-                    value={req.quantity}
-                    onChange={(e) =>
-                      updateRole(index, "quantity", parseInt(e.target.value))
-                    }
-                  />
-                  <span className="text-sm text-muted-foreground">pessoas</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeRole(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                <div key={index} className="space-y-2 rounded border p-2">
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="flex-1 rounded border px-2 py-1 text-sm"
+                      value={req.role_id}
+                      onChange={(e) =>
+                        updateRole(index, "role_id", parseInt(e.target.value))
+                      }
+                    >
+                      {roles?.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="100"
+                      className="w-20"
+                      placeholder="%"
+                      value={req.allocation_percentage}
+                      onChange={(e) =>
+                        updateRole(
+                          index,
+                          "allocation_percentage",
+                          parseInt(e.target.value),
+                        )
+                      }
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
+                    <Input
+                      type="number"
+                      min="1"
+                      className="w-16"
+                      placeholder="Qty"
+                      value={req.quantity}
+                      onChange={(e) =>
+                        updateRole(index, "quantity", parseInt(e.target.value))
+                      }
+                    />
+                    <span className="text-sm text-muted-foreground">pessoas</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeRole(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 pl-1">
+                    <span className="text-xs text-muted-foreground">Período:</span>
+                    <Input
+                      type="date"
+                      className="h-8 w-40"
+                      value={req.start_date || ""}
+                      onChange={(e) =>
+                        updateRole(index, "start_date", e.target.value)
+                      }
+                    />
+                    <span className="text-xs text-muted-foreground">→</span>
+                    <Input
+                      type="date"
+                      className="h-8 w-40"
+                      value={req.end_date || ""}
+                      onChange={(e) =>
+                        updateRole(index, "end_date", e.target.value)
+                      }
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      (opcional — vazio = pelo contrato inteiro)
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

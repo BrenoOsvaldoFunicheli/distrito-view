@@ -1,8 +1,12 @@
 from collections.abc import Generator
 
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import SessionLocal
+from app.models.user import User
+from app.services import auth_service
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -11,3 +15,17 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def get_current_user(
+    request: Request, db: Session = Depends(get_db)
+) -> User:
+    token = request.cookies.get(settings.AUTH_COOKIE_NAME)
+    if not token:
+        # Aceita também header Authorization: Bearer ... como fallback
+        auth = request.headers.get("Authorization")
+        if auth and auth.lower().startswith("bearer "):
+            token = auth.split(" ", 1)[1]
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return auth_service.get_user_from_token(db, token)

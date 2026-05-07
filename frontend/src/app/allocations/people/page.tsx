@@ -17,8 +17,7 @@ const ROLE_ORDER = [
   "Engenheiro Dados",
   "Desenvolvedor",
   "Engenheiro de ML",
-  "PO",
-  "PM",
+  "PM/PO",
 ];
 
 const ROLE_BG_COLORS: Record<string, string> = {
@@ -26,8 +25,7 @@ const ROLE_BG_COLORS: Record<string, string> = {
   "Engenheiro Dados": "bg-blue-50 border-blue-200",
   "Desenvolvedor": "bg-green-50 border-green-200",
   "Engenheiro de ML": "bg-cyan-50 border-cyan-200",
-  "PO": "bg-amber-50 border-amber-200",
-  "PM": "bg-orange-50 border-orange-200",
+  "PM/PO": "bg-amber-50 border-amber-200",
 };
 
 type Filter = "all" | "allocated" | "partial" | "bench";

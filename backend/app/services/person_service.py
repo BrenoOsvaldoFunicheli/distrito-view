@@ -1,6 +1,9 @@
+from datetime import date
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.allocation import Allocation
 from app.models.person import Person
 from app.models.person_role import PersonRole
 from app.schemas.person import PersonCreate, PersonUpdate
@@ -69,5 +72,32 @@ def update_person(db: Session, person_id: int, data: PersonUpdate) -> Person:
 
 def delete_person(db: Session, person_id: int) -> None:
     person = get_person(db, person_id)
-    person.is_active = False
+    db.delete(person)
     db.commit()
+
+
+def terminate_person(db: Session, person_id: int, terminated_at: date) -> Person:
+    """Demitir: marca inativo, registra data de saída, ajusta alocações."""
+    person = get_person(db, person_id)
+    person.is_active = False
+    person.terminated_at = terminated_at
+
+    allocations = (
+        db.query(Allocation).filter(Allocation.person_id == person_id).all()
+    )
+    for alloc in allocations:
+        if alloc.start_date > terminated_at:
+            db.delete(alloc)
+        elif alloc.end_date > terminated_at:
+            alloc.end_date = terminated_at
+
+    db.commit()
+    return get_person(db, person_id)
+
+
+def reactivate_person(db: Session, person_id: int) -> Person:
+    person = get_person(db, person_id)
+    person.is_active = True
+    person.terminated_at = None
+    db.commit()
+    return get_person(db, person_id)
