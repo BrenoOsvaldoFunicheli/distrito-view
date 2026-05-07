@@ -1,12 +1,12 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
 
-FAROL_KINDS = ("manual", "calculated_allocation")
+FAROL_KINDS = ("manual", "calculated_allocation", "macro")
 
 
 class FarolCriterion(Base):
@@ -24,6 +24,7 @@ class FarolCriterion(Base):
         nullable=True,
         index=True,
     )
+    weights: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )

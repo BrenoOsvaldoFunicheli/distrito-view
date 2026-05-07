@@ -6,6 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { useFarolBoard } from "@/hooks/use-farol";
 import type {
   FarolBoardCell,
+  FarolColor,
   FarolCriterion,
   FarolGroup,
 } from "@/lib/types";
@@ -65,7 +66,6 @@ export function FarolBoardTable({ week }: FarolBoardTableProps) {
   });
 
   const sections = buildSections(data.groups, data.criteria);
-  const colSpanData = data.clients.length;
 
   return (
     <div className="overflow-x-auto rounded-lg border bg-card">
@@ -118,7 +118,24 @@ export function FarolBoardTable({ week }: FarolBoardTableProps) {
                         </span>
                       </div>
                     </td>
-                    <td colSpan={colSpanData} className="px-2 py-1.5" />
+                    {data.clients.map((client) => {
+                      const color = computeGroupColor(
+                        section.criteria,
+                        client.id,
+                        cellMap,
+                      );
+                      return (
+                        <td
+                          key={client.id}
+                          className={cn(
+                            "border-l p-0 text-center align-middle",
+                            COLOR_BG[color],
+                          )}
+                        >
+                          <div className="h-6 w-full" />
+                        </td>
+                      );
+                    })}
                   </tr>
                 )}
                 {!isCollapsed &&
@@ -169,6 +186,37 @@ interface Section {
   label: string;
   group: FarolGroup | null;
   criteria: FarolCriterion[];
+}
+
+const COLOR_SCORE: Record<string, number> = { red: 3, yellow: 2, green: 1 };
+
+const COLOR_BG: Record<FarolColor, string> = {
+  red: "bg-red-200",
+  yellow: "bg-yellow-200",
+  green: "bg-green-200",
+  none: "",
+};
+
+function computeGroupColor(
+  criteria: FarolCriterion[],
+  clientId: number,
+  cellMap: Map<string, FarolBoardCell>,
+): FarolColor {
+  let sum = 0;
+  let count = 0;
+  for (const c of criteria) {
+    if (!c.show_color) continue;
+    const cell = cellMap.get(`${c.id}:${clientId}`);
+    const score = COLOR_SCORE[cell?.color ?? ""];
+    if (score === undefined) continue;
+    sum += score;
+    count += 1;
+  }
+  if (count === 0) return "none";
+  const avg = sum / count;
+  if (avg >= 2.34) return "red";
+  if (avg >= 1.67) return "yellow";
+  return "green";
 }
 
 function buildSections(

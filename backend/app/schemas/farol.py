@@ -9,6 +9,7 @@ class FarolCriterionCreate(BaseModel):
     show_color: bool = True
     show_text: bool = False
     group_id: int | None = None
+    weights: dict[str, float] | None = None
 
 
 class FarolCriterionUpdate(BaseModel):
@@ -17,6 +18,7 @@ class FarolCriterionUpdate(BaseModel):
     show_color: bool | None = None
     show_text: bool | None = None
     group_id: int | None = None
+    weights: dict[str, float] | None = None
 
 
 class FarolCriterionReorderItem(BaseModel):
@@ -36,6 +38,7 @@ class FarolCriterionResponse(BaseModel):
     show_text: bool
     position: int
     group_id: int | None
+    weights: dict[str, float] | None = None
     created_at: datetime
     updated_at: datetime
 

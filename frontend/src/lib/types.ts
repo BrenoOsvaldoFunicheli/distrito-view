@@ -234,7 +234,7 @@ export interface AuthUser {
 }
 
 export type FarolColor = "none" | "green" | "yellow" | "red";
-export type FarolKind = "manual" | "calculated_allocation";
+export type FarolKind = "manual" | "calculated_allocation" | "macro";
 
 export interface FarolCriterion {
   id: number;
@@ -244,6 +244,7 @@ export interface FarolCriterion {
   show_text: boolean;
   position: number;
   group_id: number | null;
+  weights: Record<string, number> | null;
   created_at: string;
   updated_at: string;
 }

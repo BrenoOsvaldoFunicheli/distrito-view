@@ -7,6 +7,7 @@ import {
   Check,
   Pencil,
   Plus,
+  Sliders,
   Trash2,
   X,
 } from "lucide-react";
@@ -41,6 +42,7 @@ interface EditCriteriaDialogProps {
 const KIND_LABELS: Record<FarolKind, string> = {
   manual: "Manual",
   calculated_allocation: "Calculado: Alocação",
+  macro: "Macro (ponderado)",
 };
 
 export function EditCriteriaDialog({
@@ -125,6 +127,7 @@ function CriteriaSection({
   const [newShowColor, setNewShowColor] = useState(true);
   const [newShowText, setNewShowText] = useState(false);
   const [newGroupId, setNewGroupId] = useState<string>("");
+  const [newWeights, setNewWeights] = useState<Record<string, number>>({});
   const [adding, setAdding] = useState(false);
 
   const handleAdd = async () => {
@@ -132,18 +135,23 @@ function CriteriaSection({
     setAdding(true);
     onError("");
     try {
-      await api.post("/api/v1/farol/criteria", {
+      const body: Record<string, unknown> = {
         label: newLabel.trim(),
         kind: newKind,
         show_color: newKind === "calculated_allocation" ? true : newShowColor,
         show_text: newKind === "calculated_allocation" ? false : newShowText,
         group_id: newGroupId === "" ? null : Number(newGroupId),
-      });
+      };
+      if (newKind === "macro") {
+        body.weights = newWeights;
+      }
+      await api.post("/api/v1/farol/criteria", body);
       setNewLabel("");
       setNewKind("manual");
       setNewShowColor(true);
       setNewShowText(false);
       setNewGroupId("");
+      setNewWeights({});
       onChanged();
     } catch (err) {
       onError(err instanceof ApiError ? err.detail : "Erro ao criar");
@@ -165,14 +173,37 @@ function CriteriaSection({
     }
   };
 
+  const sorted = [...criteria].sort((a, b) => a.position - b.position);
+
+  const handleMove = async (id: number, delta: number) => {
+    const idx = sorted.findIndex((c) => c.id === id);
+    const target = idx + delta;
+    if (idx < 0 || target < 0 || target >= sorted.length) return;
+    const reordered = [...sorted];
+    [reordered[idx], reordered[target]] = [reordered[target], reordered[idx]];
+    const items = reordered.map((c, i) => ({ id: c.id, position: i + 1 }));
+    onError("");
+    try {
+      await api.post("/api/v1/farol/criteria/reorder", { items });
+      onChanged();
+    } catch (err) {
+      onError(err instanceof ApiError ? err.detail : "Erro ao reordenar");
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        {criteria.map((c) => (
+        {sorted.map((c, i) => (
           <CriterionRow
             key={c.id}
             criterion={c}
+            criteria={criteria}
             groups={groups}
+            isFirst={i === 0}
+            isLast={i === sorted.length - 1}
+            onMoveUp={() => handleMove(c.id, -1)}
+            onMoveDown={() => handleMove(c.id, 1)}
             onChanged={onChanged}
             onDelete={() => handleDelete(c.id)}
             onError={onError}
@@ -209,6 +240,7 @@ function CriteriaSection({
               <option value="calculated_allocation">
                 Calculado: Alocação
               </option>
+              <option value="macro">Macro (ponderado)</option>
             </select>
           </div>
           <div className="space-y-1 md:col-span-2">
@@ -245,6 +277,13 @@ function CriteriaSection({
             </label>
           </div>
         )}
+        {newKind === "macro" && (
+          <WeightsEditor
+            criteria={criteria}
+            weights={newWeights}
+            onChange={setNewWeights}
+          />
+        )}
         <div className="flex justify-end">
           <Button
             onClick={handleAdd}
@@ -265,7 +304,12 @@ function CriteriaSection({
 
 interface CriterionRowProps {
   criterion: FarolCriterion;
+  criteria: FarolCriterion[];
   groups: FarolGroup[];
+  isFirst: boolean;
+  isLast: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onChanged: () => void;
   onDelete: () => void;
   onError: (msg: string) => void;
@@ -273,7 +317,12 @@ interface CriterionRowProps {
 
 function CriterionRow({
   criterion,
+  criteria,
   groups,
+  isFirst,
+  isLast,
+  onMoveUp,
+  onMoveDown,
   onChanged,
   onDelete,
   onError,
@@ -281,6 +330,10 @@ function CriterionRow({
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(criterion.label);
   const [busy, setBusy] = useState(false);
+  const [weightsOpen, setWeightsOpen] = useState(false);
+  const [weights, setWeights] = useState<Record<string, number>>(
+    criterion.weights ?? {},
+  );
 
   const handleSave = async () => {
     if (!label.trim()) return;
@@ -311,10 +364,48 @@ function CriterionRow({
     }
   };
 
+  const handleWeightsSave = async () => {
+    setBusy(true);
+    onError("");
+    try {
+      await api.put(`/api/v1/farol/criteria/${criterion.id}`, { weights });
+      setWeightsOpen(false);
+      onChanged();
+    } catch (err) {
+      onError(err instanceof ApiError ? err.detail : "Erro ao salvar pesos");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const isCalculated = criterion.kind === "calculated_allocation";
+  const isMacro = criterion.kind === "macro";
 
   return (
+    <div className="space-y-1.5">
     <div className="flex items-center gap-2 rounded border bg-card px-2 py-1.5">
+      <div className="flex flex-col gap-0.5">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={onMoveUp}
+          disabled={isFirst || busy}
+          className="h-4 w-5 p-0"
+        >
+          <ArrowUp className="h-3 w-3" />
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={onMoveDown}
+          disabled={isLast || busy}
+          className="h-4 w-5 p-0"
+        >
+          <ArrowDown className="h-3 w-3" />
+        </Button>
+      </div>
       {editing ? (
         <Input
           autoFocus
@@ -391,6 +482,21 @@ function CriterionRow({
           <Pencil className="h-4 w-4" />
         </Button>
       )}
+      {isMacro && (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setWeights(criterion.weights ?? {});
+            setWeightsOpen((o) => !o);
+          }}
+          className="h-7 w-7 p-0"
+          title="Editar pesos"
+        >
+          <Sliders className="h-4 w-4" />
+        </Button>
+      )}
       <Button
         type="button"
         size="sm"
@@ -400,6 +506,99 @@ function CriterionRow({
       >
         <Trash2 className="h-4 w-4" />
       </Button>
+    </div>
+      {isMacro && weightsOpen && (
+        <div className="rounded border bg-muted/30 p-3">
+          <WeightsEditor
+            criteria={criteria}
+            excludeId={criterion.id}
+            weights={weights}
+            onChange={setWeights}
+          />
+          <div className="mt-2 flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setWeightsOpen(false)}
+              disabled={busy}
+            >
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={handleWeightsSave} disabled={busy}>
+              Salvar pesos
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ----------------- Weights -----------------
+
+interface WeightsEditorProps {
+  criteria: FarolCriterion[];
+  weights: Record<string, number>;
+  onChange: (weights: Record<string, number>) => void;
+  excludeId?: number;
+}
+
+function WeightsEditor({
+  criteria,
+  weights,
+  onChange,
+  excludeId,
+}: WeightsEditorProps) {
+  const eligible = criteria.filter(
+    (c) => c.kind !== "macro" && c.id !== excludeId,
+  );
+  const total = eligible.reduce(
+    (sum, c) => sum + (Number(weights[String(c.id)]) || 0),
+    0,
+  );
+
+  const setWeight = (id: number, raw: string) => {
+    const n = Number(raw);
+    const next = { ...weights };
+    if (!raw || Number.isNaN(n) || n <= 0) {
+      delete next[String(id)];
+    } else {
+      next[String(id)] = n;
+    }
+    onChange(next);
+  };
+
+  if (eligible.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Crie pelo menos um critério não-macro para ponderar.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-semibold uppercase text-muted-foreground">
+        Pesos do macro
+      </p>
+      {eligible.map((c) => (
+        <div key={c.id} className="flex items-center gap-2 text-sm">
+          <span className="flex-1 truncate">{c.label}</span>
+          <Input
+            type="number"
+            min="0"
+            step="0.1"
+            placeholder="0"
+            value={weights[String(c.id)] ?? ""}
+            onChange={(e) => setWeight(c.id, e.target.value)}
+            className="h-8 w-20"
+          />
+        </div>
+      ))}
+      <p className="pt-1 text-[11px] text-muted-foreground">
+        Total: {total.toFixed(2)} (pesos relativos — serão normalizados no
+        cálculo)
+      </p>
     </div>
   );
 }

@@ -151,6 +151,7 @@ def create_criterion(db: Session, data: FarolCriterionCreate) -> FarolCriterion:
         show_color=data.show_color,
         show_text=data.show_text,
         group_id=data.group_id,
+        weights=data.weights,
         position=max_pos + 1,
     )
     db.add(c)
@@ -315,10 +316,16 @@ def get_board(db: Session, week: date | None = None) -> dict:
     values_map = {(v.criterion_id, v.client_id): v for v in values}
 
     cells: list[dict] = []
+    # Indexa células não-macro por (criterion_id, client_id) para o cálculo do macro.
+    non_macro_cells: dict[tuple[int, int], str] = {}
+    macro_criteria: list[FarolCriterion] = []
+
     for criterion in criteria:
+        if criterion.kind == "macro":
+            macro_criteria.append(criterion)
+            continue
         for client in clients:
             if criterion.kind == "calculated_allocation":
-                # Calculated criteria sempre mostram o estado atual.
                 color = _compute_allocation_color(client, today)
                 cells.append(
                     {
@@ -330,18 +337,35 @@ def get_board(db: Session, week: date | None = None) -> dict:
                         "computed": True,
                     }
                 )
+                non_macro_cells[(criterion.id, client.id)] = color
             else:
                 value = values_map.get((criterion.id, client.id))
+                color = value.color if value else "none"
                 cells.append(
                     {
                         "criterion_id": criterion.id,
                         "client_id": client.id,
-                        "color": value.color if value else "none",
+                        "color": color,
                         "text_value": value.text_value if value else None,
                         "notes": value.notes if value else None,
                         "computed": False,
                     }
                 )
+                non_macro_cells[(criterion.id, client.id)] = color
+
+    for criterion in macro_criteria:
+        for client in clients:
+            color = _compute_macro_color(criterion, client.id, non_macro_cells)
+            cells.append(
+                {
+                    "criterion_id": criterion.id,
+                    "client_id": client.id,
+                    "color": color,
+                    "text_value": None,
+                    "notes": None,
+                    "computed": True,
+                }
+            )
 
     return {
         "week_start": week_start,
@@ -350,6 +374,46 @@ def get_board(db: Session, week: date | None = None) -> dict:
         "clients": [{"id": c.id, "name": c.name} for c in clients],
         "cells": cells,
     }
+
+
+_COLOR_SCORE = {"red": 3, "yellow": 2, "green": 1}
+
+
+def _compute_macro_color(
+    criterion: FarolCriterion,
+    client_id: int,
+    non_macro_cells: dict[tuple[int, int], str],
+) -> str:
+    """Média ponderada das cores dos critérios não-macro para o cliente.
+
+    red=3, yellow=2, green=1, none é ignorado (não distorce o resultado).
+    Pesos vêm de criterion.weights = {criterion_id_str: peso_relativo}.
+    Mapeamento: ≥2.34 → red, 1.67–2.33 → yellow, ≤1.66 → green, sem dados → none.
+    """
+    weights = criterion.weights or {}
+    weighted_sum = 0.0
+    weight_total = 0.0
+    for crit_id_str, weight in weights.items():
+        try:
+            crit_id = int(crit_id_str)
+        except (TypeError, ValueError):
+            continue
+        if not weight or weight <= 0:
+            continue
+        color = non_macro_cells.get((crit_id, client_id))
+        score = _COLOR_SCORE.get(color or "")
+        if score is None:
+            continue
+        weighted_sum += score * weight
+        weight_total += weight
+    if weight_total == 0:
+        return "none"
+    avg = weighted_sum / weight_total
+    if avg >= 2.34:
+        return "red"
+    if avg >= 1.67:
+        return "yellow"
+    return "green"
 
 
 def get_cell_history(
