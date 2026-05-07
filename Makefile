@@ -1,5 +1,5 @@
-BACKEND_PORT ?= 8000
-FRONTEND_PORT ?= 3000
+BACKEND_PORT ?= 8001
+FRONTEND_PORT ?= 3001
 WORKERS ?= 4
 
 .PHONY: help install migrate seed backend frontend dev reset-db build backend-prod frontend-prod prod
