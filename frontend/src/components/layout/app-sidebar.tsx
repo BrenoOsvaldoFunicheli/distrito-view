@@ -15,6 +15,8 @@ import {
   TrendingUp,
   KanbanSquare,
   Lightbulb,
+  Shield,
+  User as UserIcon,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -42,7 +44,11 @@ const dashboardItem: NavItem = {
   icon: LayoutDashboard,
 };
 
-const groups: NavGroup[] = [
+interface NavGroupDef extends NavGroup {
+  adminOnly?: boolean;
+}
+
+const groups: NavGroupDef[] = [
   {
     label: "Indicadores",
     items: [
@@ -74,6 +80,11 @@ const groups: NavGroup[] = [
       { href: "/allocations", label: "Timeline", icon: Calendar },
       { href: "/capacity", label: "Capacidade", icon: TrendingUp },
     ],
+  },
+  {
+    label: "Administração",
+    adminOnly: true,
+    items: [{ href: "/admin/users", label: "Usuários", icon: Shield }],
   },
 ];
 
@@ -195,7 +206,9 @@ export function AppSidebar() {
         className={cn("flex-1 overflow-y-auto", collapsed ? "p-2" : "p-4")}
       >
         <div className="space-y-1">{renderItem(dashboardItem)}</div>
-        {groups.map((group) => {
+        {groups
+          .filter((g) => !g.adminOnly || user?.is_admin)
+          .map((group) => {
           const open = openGroups[group.label] ?? true;
           if (collapsed) {
             return (
@@ -231,7 +244,7 @@ export function AppSidebar() {
           );
         })}
       </nav>
-      <div className={cn("border-t", collapsed ? "p-2" : "p-3")}>
+      <div className={cn("border-t space-y-1", collapsed ? "p-2" : "p-3")}>
         {!collapsed && user && (
           <div className="mb-2 px-2 text-xs">
             <p className="font-medium truncate">{user.name || user.email}</p>
@@ -240,6 +253,20 @@ export function AppSidebar() {
             )}
           </div>
         )}
+        <Link
+          href="/perfil"
+          title={collapsed ? "Meu perfil" : undefined}
+          className={cn(
+            "flex w-full items-center rounded-lg text-sm font-medium transition-colors",
+            collapsed ? "justify-center px-2 py-2" : "gap-3 px-3 py-2",
+            pathname.startsWith("/perfil")
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
+        >
+          <UserIcon className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Meu perfil</span>}
+        </Link>
         <button
           type="button"
           onClick={handleLogout}

@@ -18,3 +18,29 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UserCreateRequest(BaseModel):
+    email: str
+    password: str
+    name: str | None = None
+    is_admin: bool = False
+
+
+class UserUpdateRequest(BaseModel):
+    name: str | None = None
+    is_admin: bool | None = None
+    is_active: bool | None = None
+
+
+class ResetPasswordRequest(BaseModel):
+    password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class UpdateProfileRequest(BaseModel):
+    name: str | None = None

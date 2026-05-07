@@ -29,3 +29,9 @@ def get_current_user(
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return auth_service.get_user_from_token(db, token)
+
+
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    return user
