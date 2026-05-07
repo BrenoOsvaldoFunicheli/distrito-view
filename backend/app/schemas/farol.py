@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -8,6 +8,7 @@ class FarolCriterionCreate(BaseModel):
     kind: str = "manual"
     show_color: bool = True
     show_text: bool = False
+    group_id: int | None = None
 
 
 class FarolCriterionUpdate(BaseModel):
@@ -15,6 +16,7 @@ class FarolCriterionUpdate(BaseModel):
     kind: str | None = None
     show_color: bool | None = None
     show_text: bool | None = None
+    group_id: int | None = None
 
 
 class FarolCriterionReorderItem(BaseModel):
@@ -32,6 +34,34 @@ class FarolCriterionResponse(BaseModel):
     kind: str
     show_color: bool
     show_text: bool
+    position: int
+    group_id: int | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FarolGroupCreate(BaseModel):
+    label: str
+
+
+class FarolGroupUpdate(BaseModel):
+    label: str | None = None
+
+
+class FarolGroupReorderItem(BaseModel):
+    id: int
+    position: int
+
+
+class FarolGroupReorderRequest(BaseModel):
+    items: list[FarolGroupReorderItem]
+
+
+class FarolGroupResponse(BaseModel):
+    id: int
+    label: str
     position: int
     created_at: datetime
     updated_at: datetime
@@ -60,6 +90,28 @@ class FarolBoardCell(BaseModel):
 
 
 class FarolBoardResponse(BaseModel):
+    week_start: date
+    groups: list["FarolGroupResponse"]
     criteria: list[FarolCriterionResponse]
     clients: list[FarolBoardClient]
     cells: list[FarolBoardCell]
+
+
+class FarolHistoryEntry(BaseModel):
+    week_start: date
+    color: str
+    text_value: str | None
+    notes: str | None
+    computed: bool
+
+
+class FarolTrendWeek(BaseModel):
+    week_start: date
+    green: int
+    yellow: int
+    red: int
+    none: int
+
+
+class FarolTrendResponse(BaseModel):
+    weeks: list[FarolTrendWeek]

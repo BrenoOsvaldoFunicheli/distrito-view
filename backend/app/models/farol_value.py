@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -20,7 +21,10 @@ class FarolValue(Base):
     __tablename__ = "farol_values"
     __table_args__ = (
         UniqueConstraint(
-            "criterion_id", "client_id", name="uq_farol_values_criterion_client"
+            "criterion_id",
+            "client_id",
+            "week_start",
+            name="uq_farol_values_criterion_client_week",
         ),
     )
 
@@ -35,6 +39,7 @@ class FarolValue(Base):
         ForeignKey("clients.id", ondelete="CASCADE"),
         nullable=False,
     )
+    week_start: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     color: Mapped[str] = mapped_column(String, default="none", nullable=False)
     text_value: Mapped[str | None] = mapped_column(String)
     notes: Mapped[str | None] = mapped_column(String)

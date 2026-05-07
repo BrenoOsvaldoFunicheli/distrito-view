@@ -7,6 +7,7 @@ from app.models.contract_role import ContractRole
 from app.models.allocation import Allocation
 from app.models.proposal import Proposal
 from app.models.proposal_stage import ProposalStage
+from app.models.farol_group import FarolGroup
 from app.models.farol_criterion import FarolCriterion
 from app.models.farol_value import FarolValue
 from app.models.user import User
@@ -21,6 +22,7 @@ __all__ = [
     "Allocation",
     "Proposal",
     "ProposalStage",
+    "FarolGroup",
     "FarolCriterion",
     "FarolValue",
     "User",

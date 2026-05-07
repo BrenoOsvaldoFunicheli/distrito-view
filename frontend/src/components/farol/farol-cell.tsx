@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,10 +18,13 @@ import type {
   FarolColor,
   FarolCriterion,
 } from "@/lib/types";
+import { CellHistoryDialog } from "./cell-history-dialog";
 
 interface FarolCellProps {
   criterion: FarolCriterion;
   cell: FarolBoardCell;
+  week: string;
+  clientName: string;
   onChanged: () => void;
 }
 
@@ -39,8 +42,15 @@ const COLOR_OPTIONS: { color: FarolColor; label: string }[] = [
   { color: "none", label: "Vazio" },
 ];
 
-export function FarolCell({ criterion, cell, onChanged }: FarolCellProps) {
+export function FarolCell({
+  criterion,
+  cell,
+  week,
+  clientName,
+  onChanged,
+}: FarolCellProps) {
   const [open, setOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [text, setText] = useState(cell.text_value ?? "");
   const [notes, setNotes] = useState(cell.notes ?? "");
   const [saving, setSaving] = useState(false);
@@ -51,14 +61,12 @@ export function FarolCell({ criterion, cell, onChanged }: FarolCellProps) {
   }, [cell.text_value, cell.notes]);
 
   const isReadonly = cell.computed;
+  const valuesUrl = `/api/v1/farol/criteria/${criterion.id}/values/${cell.client_id}?week=${week}`;
 
   const setColor = async (color: FarolColor) => {
     setSaving(true);
     try {
-      await api.put(
-        `/api/v1/farol/criteria/${criterion.id}/values/${cell.client_id}`,
-        { color },
-      );
+      await api.put(valuesUrl, { color });
       onChanged();
     } finally {
       setSaving(false);
@@ -68,10 +76,7 @@ export function FarolCell({ criterion, cell, onChanged }: FarolCellProps) {
   const saveText = async () => {
     setSaving(true);
     try {
-      await api.put(
-        `/api/v1/farol/criteria/${criterion.id}/values/${cell.client_id}`,
-        { text_value: text, notes },
-      );
+      await api.put(valuesUrl, { text_value: text, notes });
       onChanged();
       setOpen(false);
     } finally {
@@ -107,70 +112,96 @@ export function FarolCell({ criterion, cell, onChanged }: FarolCellProps) {
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="w-full hover:bg-accent/40 transition-colors"
-          disabled={saving}
-        >
-          {cellContent}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 space-y-3" align="center">
-        {criterion.show_color && (
-          <div className="space-y-2">
-            <Label className="text-xs uppercase">Farol</Label>
-            <div className="flex gap-2">
-              {COLOR_OPTIONS.map((opt) => (
-                <button
-                  key={opt.color}
-                  type="button"
-                  onClick={() => setColor(opt.color)}
-                  className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-full border-2 transition",
-                    COLOR_BG[opt.color],
-                    cell.color === opt.color
-                      ? "ring-2 ring-offset-2 ring-foreground"
-                      : "border-transparent",
-                  )}
-                  title={opt.label}
-                >
-                  {cell.color === opt.color && (
-                    <Check className="h-4 w-4 text-white drop-shadow" />
-                  )}
-                </button>
-              ))}
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="w-full hover:bg-accent/40 transition-colors"
+            disabled={saving}
+          >
+            {cellContent}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 space-y-3" align="center">
+          {criterion.show_color && (
+            <div className="space-y-2">
+              <Label className="text-xs uppercase">Farol</Label>
+              <div className="flex gap-2">
+                {COLOR_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.color}
+                    type="button"
+                    onClick={() => setColor(opt.color)}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-full border-2 transition",
+                      COLOR_BG[opt.color],
+                      cell.color === opt.color
+                        ? "ring-2 ring-offset-2 ring-foreground"
+                        : "border-transparent",
+                    )}
+                    title={opt.label}
+                  >
+                    {cell.color === opt.color && (
+                      <Check className="h-4 w-4 text-white drop-shadow" />
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-        {criterion.show_text && (
+          )}
+          {criterion.show_text && (
+            <div className="space-y-1">
+              <Label className="text-xs uppercase">Texto</Label>
+              <Input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Ex: Araújo Raquel"
+              />
+            </div>
+          )}
           <div className="space-y-1">
-            <Label className="text-xs uppercase">Texto</Label>
-            <Input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Ex: Araújo Raquel"
+            <Label className="text-xs uppercase">Observações (opcional)</Label>
+            <Textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
             />
           </div>
-        )}
-        <div className="space-y-1">
-          <Label className="text-xs uppercase">Observações (opcional)</Label>
-          <Textarea
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
-            Fechar
-          </Button>
-          <Button size="sm" onClick={saveText} disabled={saving}>
-            Salvar
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setOpen(false);
+                setHistoryOpen(true);
+              }}
+            >
+              <History className="mr-1 h-3.5 w-3.5" />
+              Histórico
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOpen(false)}
+              >
+                Fechar
+              </Button>
+              <Button size="sm" onClick={saveText} disabled={saving}>
+                Salvar
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+      <CellHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        criterion={criterion}
+        clientId={cell.client_id}
+        clientName={clientName}
+      />
+    </>
   );
 }

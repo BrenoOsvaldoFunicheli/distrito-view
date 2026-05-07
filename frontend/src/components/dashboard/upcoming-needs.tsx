@@ -43,13 +43,6 @@ function renderContractGroup([contractId, group]: [string, ContractGroup]) {
   );
   const allEmpty = group.needs.every((n) => n.filled_quantity === 0);
   const hasLate = group.needs.some((n) => n.days_until_start < 0);
-  const bgClass = hasLate
-    ? "bg-red-50/40"
-    : allFilled
-      ? "bg-green-50/40"
-      : allEmpty
-        ? "bg-yellow-50/40"
-        : "";
   let statusBadge: React.ReactNode = null;
   if (hasLate) {
     statusBadge = (
@@ -76,7 +69,7 @@ function renderContractGroup([contractId, group]: [string, ContractGroup]) {
   return (
     <div
       key={contractId}
-      className={`rounded-lg border p-3 ${bgClass}`}
+      className="rounded-lg border p-3"
     >
       <div className="flex items-start justify-between gap-2">
         <div>

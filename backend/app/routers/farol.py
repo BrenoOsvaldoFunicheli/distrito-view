@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from datetime import date
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
@@ -9,6 +11,12 @@ from app.schemas.farol import (
     FarolCriterionReorderRequest,
     FarolCriterionResponse,
     FarolCriterionUpdate,
+    FarolGroupCreate,
+    FarolGroupReorderRequest,
+    FarolGroupResponse,
+    FarolGroupUpdate,
+    FarolHistoryEntry,
+    FarolTrendResponse,
 )
 from app.services import farol_service
 
@@ -16,8 +24,11 @@ router = APIRouter(prefix="/farol", tags=["farol"])
 
 
 @router.get("/board", response_model=FarolBoardResponse)
-def get_board(db: Session = Depends(get_db)):
-    return farol_service.get_board(db)
+def get_board(
+    week: date | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    return farol_service.get_board(db, week)
 
 
 @router.get("/criteria", response_model=list[FarolCriterionResponse])
@@ -56,14 +67,69 @@ def set_cell(
     criterion_id: int,
     client_id: int,
     data: FarolCellUpdate,
+    week: date | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    value = farol_service.set_cell(db, criterion_id, client_id, data)
+    value = farol_service.set_cell(db, criterion_id, client_id, data, week)
     return {
         "id": value.id,
         "criterion_id": value.criterion_id,
         "client_id": value.client_id,
+        "week_start": value.week_start,
         "color": value.color,
         "text_value": value.text_value,
         "notes": value.notes,
     }
+
+
+@router.get(
+    "/criteria/{criterion_id}/values/{client_id}/history",
+    response_model=list[FarolHistoryEntry],
+)
+def get_cell_history(
+    criterion_id: int,
+    client_id: int,
+    weeks: int = Query(default=12, ge=1, le=104),
+    db: Session = Depends(get_db),
+):
+    return farol_service.get_cell_history(db, criterion_id, client_id, weeks)
+
+
+@router.get("/trend", response_model=FarolTrendResponse)
+def get_trend(
+    weeks: int = Query(default=12, ge=1, le=104),
+    db: Session = Depends(get_db),
+):
+    return farol_service.get_trend(db, weeks)
+
+
+# ---------------- Groups ----------------
+
+
+@router.get("/groups", response_model=list[FarolGroupResponse])
+def list_groups(db: Session = Depends(get_db)):
+    return farol_service.list_groups(db)
+
+
+@router.post("/groups", response_model=FarolGroupResponse, status_code=201)
+def create_group(data: FarolGroupCreate, db: Session = Depends(get_db)):
+    return farol_service.create_group(db, data)
+
+
+@router.put("/groups/{group_id}", response_model=FarolGroupResponse)
+def update_group(
+    group_id: int, data: FarolGroupUpdate, db: Session = Depends(get_db)
+):
+    return farol_service.update_group(db, group_id, data)
+
+
+@router.delete("/groups/{group_id}", status_code=204)
+def delete_group(group_id: int, db: Session = Depends(get_db)):
+    farol_service.delete_group(db, group_id)
+
+
+@router.post("/groups/reorder", response_model=list[FarolGroupResponse])
+def reorder_groups(
+    payload: FarolGroupReorderRequest, db: Session = Depends(get_db)
+):
+    return farol_service.reorder_groups(db, payload)

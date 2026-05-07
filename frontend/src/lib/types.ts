@@ -243,6 +243,15 @@ export interface FarolCriterion {
   show_color: boolean;
   show_text: boolean;
   position: number;
+  group_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FarolGroup {
+  id: number;
+  label: string;
+  position: number;
   created_at: string;
   updated_at: string;
 }
@@ -262,9 +271,31 @@ export interface FarolBoardCell {
 }
 
 export interface FarolBoard {
+  week_start: string;
+  groups: FarolGroup[];
   criteria: FarolCriterion[];
   clients: FarolBoardClient[];
   cells: FarolBoardCell[];
+}
+
+export interface FarolHistoryEntry {
+  week_start: string;
+  color: FarolColor;
+  text_value: string | null;
+  notes: string | null;
+  computed: boolean;
+}
+
+export interface FarolTrendWeek {
+  week_start: string;
+  green: number;
+  yellow: number;
+  red: number;
+  none: number;
+}
+
+export interface FarolTrend {
+  weeks: FarolTrendWeek[];
 }
 
 export interface Proposal {

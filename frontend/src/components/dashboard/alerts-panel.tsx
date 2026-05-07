@@ -30,21 +30,19 @@ import type { UnallocatedPerson } from "@/lib/types";
 function renderPerson(person: UnallocatedPerson) {
   const days = person.days_until_unallocated;
   const hasNext = !!person.next_allocation_start;
+  const isBench = days === null;
   let urgencyColor = "bg-green-100 text-green-800";
   if (days !== null && days < 7) {
     urgencyColor = "bg-red-100 text-red-800";
   } else if (days !== null && days < 21) {
     urgencyColor = "bg-yellow-100 text-yellow-800";
   }
-  if (days === null) {
-    urgencyColor = "bg-red-100 text-red-800";
-  }
 
-  const badgeText = days !== null ? `${days} dias` : "No bench";
+  const badgeText = days !== null ? `${days} dias` : null;
 
   let nextStartLabel: string | null = null;
   let nextStartClass = "";
-  if (hasNext) {
+  if (hasNext && !isBench) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const next = new Date(person.next_allocation_start as string);
@@ -83,9 +81,16 @@ function renderPerson(person: UnallocatedPerson) {
       </div>
       <div className="text-right">
         <div className="flex flex-wrap items-center justify-end gap-1">
-          <Badge variant="secondary" className={urgencyColor}>
-            {badgeText}
-          </Badge>
+          {badgeText && (
+            <Badge variant="secondary" className={urgencyColor}>
+              {badgeText}
+            </Badge>
+          )}
+          {isBench && (
+            <span className="text-xs font-medium text-muted-foreground">
+              No bench
+            </span>
+          )}
           {nextStartLabel && (
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${nextStartClass}`}
@@ -137,16 +142,16 @@ export function AlertsPanel({ expanded: expandedProp, onToggleExpand }: AlertsPa
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <AlertTriangle className="h-5 w-5" />
-          Desalocacoes Proximas
+          Desalocações Próximas
         </CardTitle>
         <CardDescription>
-          Pessoas ficando desalocadas nos proximos 90 dias
+          Pessoas ficando desalocadas nos próximos 90 dias
         </CardDescription>
       </CardHeader>
       <CardContent>
         {people.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nenhuma desalocacao proxima. Todas as pessoas estao no bench.
+            Nenhuma desalocação próxima. Todas as pessoas estão no bench.
           </p>
         ) : (
           <div

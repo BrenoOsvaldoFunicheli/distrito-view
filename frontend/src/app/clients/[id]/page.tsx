@@ -1,12 +1,13 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { EditClientDialog } from "@/components/clients/edit-client-dialog";
 import { useClient } from "@/hooks/use-clients";
 import { useContracts } from "@/hooks/use-contracts";
 
@@ -17,8 +18,9 @@ export default function ClientDetailPage({
 }) {
   const { id } = use(params);
   const clientId = parseInt(id);
-  const { data: client } = useClient(clientId);
+  const { data: client, mutate: mutateClient } = useClient(clientId);
   const { data: contracts } = useContracts(undefined, clientId);
+  const [editing, setEditing] = useState(false);
 
   if (!client) {
     return <div className="animate-pulse h-64 bg-muted rounded-lg" />;
@@ -43,7 +45,16 @@ export default function ClientDetailPage({
         </Link>
       </div>
 
-      <PageHeader title={client.name} description={client.sector || undefined} />
+      <PageHeader
+        title={client.name}
+        description={client.sector || undefined}
+        actions={
+          <Button variant="outline" onClick={() => setEditing(true)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Editar
+          </Button>
+        }
+      />
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card>
@@ -121,6 +132,13 @@ export default function ClientDetailPage({
           )}
         </CardContent>
       </Card>
+
+      <EditClientDialog
+        open={editing}
+        onOpenChange={setEditing}
+        client={client}
+        onSaved={() => mutateClient()}
+      />
     </div>
   );
 }
