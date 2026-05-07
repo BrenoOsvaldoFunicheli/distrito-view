@@ -67,29 +67,33 @@ frontend-prod:
 prod: build
 	$(MAKE) -j2 backend-prod frontend-prod
 
+ROOT_DIR := $(CURDIR)
+ABS_PID_DIR := $(ROOT_DIR)/$(PID_DIR)
+ABS_LOG_DIR := $(ROOT_DIR)/$(LOG_DIR)
+
 prod-start: build
-	@mkdir -p $(PID_DIR) $(LOG_DIR)
-	@if [ -f $(PID_DIR)/backend.pid ] && kill -0 $$(cat $(PID_DIR)/backend.pid) 2>/dev/null; then \
-		echo "backend já rodando (PID $$(cat $(PID_DIR)/backend.pid)). Use 'make stop' antes."; exit 1; \
+	@mkdir -p "$(ABS_PID_DIR)" "$(ABS_LOG_DIR)"
+	@if [ -f "$(ABS_PID_DIR)/backend.pid" ] && kill -0 $$(cat "$(ABS_PID_DIR)/backend.pid") 2>/dev/null; then \
+		echo "backend já rodando (PID $$(cat $(ABS_PID_DIR)/backend.pid)). Use 'make stop' antes."; exit 1; \
 	fi
-	@if [ -f $(PID_DIR)/frontend.pid ] && kill -0 $$(cat $(PID_DIR)/frontend.pid) 2>/dev/null; then \
-		echo "frontend já rodando (PID $$(cat $(PID_DIR)/frontend.pid)). Use 'make stop' antes."; exit 1; \
+	@if [ -f "$(ABS_PID_DIR)/frontend.pid" ] && kill -0 $$(cat "$(ABS_PID_DIR)/frontend.pid") 2>/dev/null; then \
+		echo "frontend já rodando (PID $$(cat $(ABS_PID_DIR)/frontend.pid)). Use 'make stop' antes."; exit 1; \
 	fi
 	@echo "Subindo backend (porta $(BACKEND_PORT))..."
-	@cd backend && nohup uv run uvicorn app.main:app --host 0.0.0.0 --port $(BACKEND_PORT) --workers $(WORKERS) >> ../$(LOG_DIR)/backend.log 2>&1 & echo $$! > ../$(PID_DIR)/backend.pid
-	@echo "  PID $$(cat $(PID_DIR)/backend.pid) -> $(LOG_DIR)/backend.log"
+	@cd backend && nohup uv run uvicorn app.main:app --host 0.0.0.0 --port $(BACKEND_PORT) --workers $(WORKERS) >> "$(ABS_LOG_DIR)/backend.log" 2>&1 & echo $$! > "$(ABS_PID_DIR)/backend.pid"
+	@echo "  PID $$(cat $(ABS_PID_DIR)/backend.pid) -> $(LOG_DIR)/backend.log"
 	@echo "Subindo frontend (porta $(FRONTEND_PORT))..."
-	@cd frontend && nohup npm run start -- -p $(FRONTEND_PORT) >> ../$(LOG_DIR)/frontend.log 2>&1 & echo $$! > ../$(PID_DIR)/frontend.pid
-	@echo "  PID $$(cat $(PID_DIR)/frontend.pid) -> $(LOG_DIR)/frontend.log"
+	@cd frontend && nohup npm run start -- -p $(FRONTEND_PORT) >> "$(ABS_LOG_DIR)/frontend.log" 2>&1 & echo $$! > "$(ABS_PID_DIR)/frontend.pid"
+	@echo "  PID $$(cat $(ABS_PID_DIR)/frontend.pid) -> $(LOG_DIR)/frontend.log"
 	@echo ""
 	@echo "Pronto. backend: http://localhost:$(BACKEND_PORT)  frontend: http://localhost:$(FRONTEND_PORT)"
 	@echo "Use 'make status', 'make logs' ou 'make stop'."
 
 stop:
 	@for name in backend frontend; do \
-		pidfile=$(PID_DIR)/$$name.pid; \
-		if [ -f $$pidfile ]; then \
-			pid=$$(cat $$pidfile); \
+		pidfile="$(ABS_PID_DIR)/$$name.pid"; \
+		if [ -f "$$pidfile" ]; then \
+			pid=$$(cat "$$pidfile"); \
 			if kill -0 $$pid 2>/dev/null; then \
 				echo "Matando $$name (PID $$pid)..."; \
 				kill $$pid 2>/dev/null || true; \
@@ -104,7 +108,7 @@ stop:
 			else \
 				echo "$$name não estava rodando (PID $$pid)."; \
 			fi; \
-			rm -f $$pidfile; \
+			rm -f "$$pidfile"; \
 		else \
 			echo "$$name sem PID registrado."; \
 		fi; \
@@ -115,9 +119,9 @@ stop:
 
 status:
 	@for name in backend frontend; do \
-		pidfile=$(PID_DIR)/$$name.pid; \
-		if [ -f $$pidfile ]; then \
-			pid=$$(cat $$pidfile); \
+		pidfile="$(ABS_PID_DIR)/$$name.pid"; \
+		if [ -f "$$pidfile" ]; then \
+			pid=$$(cat "$$pidfile"); \
 			if kill -0 $$pid 2>/dev/null; then \
 				echo "$$name: RODANDO (PID $$pid)"; \
 			else \
@@ -132,6 +136,6 @@ status:
 	@(ss -tlnp 2>/dev/null | grep -E ":$(BACKEND_PORT)|:$(FRONTEND_PORT)") || echo "  (nada escutando em $(BACKEND_PORT)/$(FRONTEND_PORT))"
 
 logs:
-	@mkdir -p $(LOG_DIR)
-	@touch $(LOG_DIR)/backend.log $(LOG_DIR)/frontend.log
-	@tail -f $(LOG_DIR)/backend.log $(LOG_DIR)/frontend.log
+	@mkdir -p "$(ABS_LOG_DIR)"
+	@touch "$(ABS_LOG_DIR)/backend.log" "$(ABS_LOG_DIR)/frontend.log"
+	@tail -f "$(ABS_LOG_DIR)/backend.log" "$(ABS_LOG_DIR)/frontend.log"
