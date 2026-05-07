@@ -1,3 +1,7 @@
+BACKEND_PORT ?= 8000
+FRONTEND_PORT ?= 3000
+WORKERS ?= 4
+
 .PHONY: help install migrate seed backend frontend dev reset-db build backend-prod frontend-prod prod
 
 help:
@@ -5,16 +9,18 @@ help:
 	@echo "  install        - Install backend and frontend dependencies"
 	@echo "  migrate        - Run backend database migrations"
 	@echo "  seed           - Seed the database"
-	@echo "  backend        - Run backend with reload (port 8000)"
-	@echo "  frontend       - Run frontend dev server (port 3000)"
+	@echo "  backend        - Run backend with reload (port $(BACKEND_PORT))"
+	@echo "  frontend       - Run frontend dev server (port $(FRONTEND_PORT))"
 	@echo "  dev            - Run backend and frontend in parallel"
 	@echo "  reset-db       - Delete DB, migrate and re-seed"
 	@echo ""
 	@echo "Prod targets:"
 	@echo "  build          - Build frontend for production"
-	@echo "  backend-prod   - Run backend without reload, multi-worker (port 8000)"
-	@echo "  frontend-prod  - Run frontend production server (port 3000)"
+	@echo "  backend-prod   - Run backend without reload, multi-worker (port $(BACKEND_PORT))"
+	@echo "  frontend-prod  - Run frontend production server (port $(FRONTEND_PORT))"
 	@echo "  prod           - Build then run backend + frontend in production mode"
+	@echo ""
+	@echo "Override ports:  make prod BACKEND_PORT=8001 FRONTEND_PORT=3001"
 
 install:
 	cd backend && uv sync
@@ -27,10 +33,10 @@ seed:
 	cd backend && uv run python -m app.seed
 
 backend:
-	cd backend && uv run uvicorn app.main:app --port 8000 --reload
+	cd backend && uv run uvicorn app.main:app --port $(BACKEND_PORT) --reload
 
 frontend:
-	cd frontend && npm run dev
+	cd frontend && npm run dev -- -p $(FRONTEND_PORT)
 
 dev:
 	$(MAKE) -j2 backend frontend
@@ -44,10 +50,10 @@ build:
 	cd frontend && npm run build
 
 backend-prod:
-	cd backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+	cd backend && uv run uvicorn app.main:app --host 0.0.0.0 --port $(BACKEND_PORT) --workers $(WORKERS)
 
 frontend-prod:
-	cd frontend && npm run start -- -p 3000
+	cd frontend && npm run start -- -p $(FRONTEND_PORT)
 
 prod: build
 	$(MAKE) -j2 backend-prod frontend-prod
