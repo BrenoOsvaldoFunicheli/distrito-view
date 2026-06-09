@@ -13,10 +13,25 @@ from app.schemas.auth import (
     UserResponse,
     UserUpdateRequest,
 )
-from app.services import auth_service, user_service
+from app.services import auth_service, user_group_service, user_service
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _enrich(db: Session, user: User) -> dict:
+    """Monta dict do UserResponse incluindo groups e areas."""
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "is_active": user.is_active,
+        "is_admin": user.is_admin,
+        "groups": user_group_service.get_user_groups(db, user),
+        "areas": sorted(user_group_service.get_user_areas(db, user)),
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+    }
 
 
 def _set_auth_cookie(response: Response, token: str) -> None:
@@ -36,7 +51,7 @@ def login(data: LoginRequest, response: Response, db: Session = Depends(get_db))
     user = auth_service.authenticate(db, data.email, data.password)
     token = auth_service.create_access_token(user)
     _set_auth_cookie(response, token)
-    return user
+    return _enrich(db, user)
 
 
 @router.post("/logout", status_code=204)
@@ -50,8 +65,8 @@ def logout(response: Response):
 
 
 @router.get("/me", response_model=UserResponse)
-def me(user: User = Depends(get_current_user)):
-    return user
+def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _enrich(db, user)
 
 
 @router.put("/me", response_model=UserResponse)
@@ -60,7 +75,8 @@ def update_me(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return user_service.update_own_profile(db, user, data)
+    updated = user_service.update_own_profile(db, user, data)
+    return _enrich(db, updated)
 
 
 @router.post("/me/change-password", response_model=UserResponse)
@@ -69,7 +85,8 @@ def change_my_password(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    return user_service.change_own_password(db, user, data)
+    updated = user_service.change_own_password(db, user, data)
+    return _enrich(db, updated)
 
 
 # --- Admin: gerenciar usuários ---
@@ -80,7 +97,7 @@ def list_users(
     _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return user_service.list_users(db)
+    return [_enrich(db, u) for u in user_service.list_users(db)]
 
 
 @router.post("/users", response_model=UserResponse, status_code=201)
@@ -89,7 +106,8 @@ def create_user(
     _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return user_service.create_user(db, data)
+    user = user_service.create_user(db, data)
+    return _enrich(db, user)
 
 
 @router.put("/users/{user_id}", response_model=UserResponse)
@@ -99,7 +117,8 @@ def update_user(
     _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return user_service.update_user(db, user_id, data)
+    user = user_service.update_user(db, user_id, data)
+    return _enrich(db, user)
 
 
 @router.post("/users/{user_id}/reset-password", response_model=UserResponse)
@@ -109,7 +128,8 @@ def reset_user_password(
     _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    return user_service.reset_password(db, user_id, data)
+    user = user_service.reset_password(db, user_id, data)
+    return _enrich(db, user)
 
 
 @router.delete("/users/{user_id}", status_code=204)

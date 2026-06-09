@@ -7,14 +7,18 @@ import type {
   FarolCriterion,
   FarolGroup,
   FarolHistoryEntry,
+  FarolScope,
   FarolTrend,
 } from "@/lib/types";
 
-export function useFarolBoard(week?: string) {
-  const url = week
-    ? `/api/v1/farol/board?week=${week}`
-    : "/api/v1/farol/board";
-  return useSWR<FarolBoard>(url, api.get);
+export function useFarolBoard(week?: string, scope: FarolScope = "client") {
+  const params = new URLSearchParams();
+  if (week) params.set("week", week);
+  params.set("scope", scope);
+  return useSWR<FarolBoard>(
+    `/api/v1/farol/board?${params.toString()}`,
+    api.get,
+  );
 }
 
 export function useFarolCriteria() {
@@ -27,16 +31,23 @@ export function useFarolGroups() {
 
 export function useFarolCellHistory(
   criterionId: number | null,
-  clientId: number | null,
+  scope: FarolScope | null,
+  columnId: number | null,
   weeks: number = 12,
 ) {
   const url =
-    criterionId && clientId
-      ? `/api/v1/farol/criteria/${criterionId}/values/${clientId}/history?weeks=${weeks}`
+    criterionId && scope && columnId
+      ? `/api/v1/farol/criteria/${criterionId}/history?scope=${scope}&column_id=${columnId}&weeks=${weeks}`
       : null;
   return useSWR<FarolHistoryEntry[]>(url, api.get);
 }
 
-export function useFarolTrend(weeks: number = 12) {
-  return useSWR<FarolTrend>(`/api/v1/farol/trend?weeks=${weeks}`, api.get);
+export function useFarolTrend(
+  weeks: number = 12,
+  scope: FarolScope = "client",
+) {
+  return useSWR<FarolTrend>(
+    `/api/v1/farol/trend?weeks=${weeks}&scope=${scope}`,
+    api.get,
+  );
 }

@@ -11,6 +11,7 @@ from app.models.contract_role import ContractRole
 from app.models.farol_criterion import FAROL_KINDS, FarolCriterion
 from app.models.farol_group import FarolGroup
 from app.models.farol_value import FAROL_COLORS, FarolValue
+from app.models.project import Project
 from app.schemas.farol import (
     FarolCellUpdate,
     FarolCriterionCreate,
@@ -204,36 +205,48 @@ def reorder_criteria(
 def set_cell(
     db: Session,
     criterion_id: int,
-    client_id: int,
     payload: FarolCellUpdate,
+    client_id: int | None = None,
+    project_id: int | None = None,
     week: date | None = None,
 ) -> FarolValue:
+    if (client_id is None) == (project_id is None):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one of client_id or project_id.",
+        )
     criterion = get_criterion(db, criterion_id)
     if criterion.kind != "manual":
         raise HTTPException(
             status_code=400,
             detail="Cells of calculated criteria cannot be set manually.",
         )
-    if not db.query(Client).filter(Client.id == client_id).first():
-        raise HTTPException(status_code=404, detail="Client not found")
+    if client_id is not None:
+        if not db.query(Client).filter(Client.id == client_id).first():
+            raise HTTPException(status_code=404, detail="Client not found")
+    else:
+        if not db.query(Project).filter(Project.id == project_id).first():
+            raise HTTPException(status_code=404, detail="Project not found")
     if payload.color is not None:
         _validate_color(payload.color)
 
     week_start = _normalize_week(week)
 
-    value = (
-        db.query(FarolValue)
-        .filter(
-            FarolValue.criterion_id == criterion_id,
-            FarolValue.client_id == client_id,
-            FarolValue.week_start == week_start,
-        )
-        .first()
+    query = db.query(FarolValue).filter(
+        FarolValue.criterion_id == criterion_id,
+        FarolValue.week_start == week_start,
     )
+    if client_id is not None:
+        query = query.filter(FarolValue.client_id == client_id)
+    else:
+        query = query.filter(FarolValue.project_id == project_id)
+    value = query.first()
+
     if value is None:
         value = FarolValue(
             criterion_id=criterion_id,
             client_id=client_id,
+            project_id=project_id,
             week_start=week_start,
             color=payload.color or "none",
             text_value=payload.text_value,
@@ -290,33 +303,87 @@ def _compute_allocation_color(client: Client, today: date) -> str:
     return "green"
 
 
-def get_board(db: Session, week: date | None = None) -> dict:
+FAROL_SCOPES = ("client", "project")
+
+
+def _validate_scope(scope: str) -> None:
+    if scope not in FAROL_SCOPES:
+        raise HTTPException(status_code=400, detail=f"Invalid scope: {scope}")
+
+
+def get_board(
+    db: Session, week: date | None = None, scope: str = "client"
+) -> dict:
+    _validate_scope(scope)
     week_start = _normalize_week(week)
     today = date.today()
 
-    clients = (
-        db.query(Client)
-        .options(
-            joinedload(Client.contracts)
-            .joinedload(Contract.contract_roles)
-            .joinedload(ContractRole.allocations),
+    # Carrega entidades de coluna conforme scope.
+    clients_by_id: dict[int, Client] = {}
+    columns: list[dict] = []  # id, name, subtitle (cliente do projeto, etc)
+
+    if scope == "client":
+        clients = (
+            db.query(Client)
+            .options(
+                joinedload(Client.contracts)
+                .joinedload(Contract.contract_roles)
+                .joinedload(ContractRole.allocations),
+            )
+            .join(Contract, Contract.client_id == Client.id)
+            .filter(Contract.status == "active")
+            .order_by(Client.name)
+            .distinct()
+            .all()
         )
-        .join(Contract, Contract.client_id == Client.id)
-        .filter(Contract.status == "active")
-        .order_by(Client.name)
-        .distinct()
-        .all()
-    )
+        for c in clients:
+            clients_by_id[c.id] = c
+            columns.append({"id": c.id, "name": c.name, "subtitle": None})
+    else:
+        projects = (
+            db.query(Project)
+            .options(
+                joinedload(Project.contract)
+                .joinedload(Contract.client),
+                joinedload(Project.contract)
+                .joinedload(Contract.contract_roles)
+                .joinedload(ContractRole.allocations),
+            )
+            .filter(Project.status == "active")
+            .join(Contract, Project.contract_id == Contract.id)
+            .order_by(Client.name, Project.name)
+            .join(Client, Contract.client_id == Client.id)
+            .all()
+        )
+        # Para o cálculo de Alocação (calculated_allocation): cor do contrato pai.
+        project_to_client: dict[int, Client] = {}
+        for p in projects:
+            client = p.contract.client
+            clients_by_id[client.id] = client
+            project_to_client[p.id] = client
+            columns.append(
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "subtitle": client.name,
+                }
+            )
+
     criteria = list_criteria(db)
-    values = (
+    values_query = (
         db.query(FarolValue)
         .filter(FarolValue.week_start == week_start)
-        .all()
     )
-    values_map = {(v.criterion_id, v.client_id): v for v in values}
+    if scope == "client":
+        values_query = values_query.filter(FarolValue.client_id.isnot(None))
+        values = values_query.all()
+        values_map = {(v.criterion_id, v.client_id): v for v in values}
+    else:
+        values_query = values_query.filter(FarolValue.project_id.isnot(None))
+        values = values_query.all()
+        values_map = {(v.criterion_id, v.project_id): v for v in values}
 
     cells: list[dict] = []
-    # Indexa células não-macro por (criterion_id, client_id) para o cálculo do macro.
     non_macro_cells: dict[tuple[int, int], str] = {}
     macro_criteria: list[FarolCriterion] = []
 
@@ -324,42 +391,50 @@ def get_board(db: Session, week: date | None = None) -> dict:
         if criterion.kind == "macro":
             macro_criteria.append(criterion)
             continue
-        for client in clients:
+        for col in columns:
+            col_id = col["id"]
             if criterion.kind == "calculated_allocation":
+                if scope == "client":
+                    client = clients_by_id[col_id]
+                else:
+                    # Projeto: usa o cliente do contrato pai.
+                    client = project_to_client[col_id]
                 color = _compute_allocation_color(client, today)
                 cells.append(
                     {
                         "criterion_id": criterion.id,
-                        "client_id": client.id,
+                        "column_id": col_id,
                         "color": color,
                         "text_value": None,
                         "notes": None,
                         "computed": True,
                     }
                 )
-                non_macro_cells[(criterion.id, client.id)] = color
+                non_macro_cells[(criterion.id, col_id)] = color
             else:
-                value = values_map.get((criterion.id, client.id))
+                value = values_map.get((criterion.id, col_id))
                 color = value.color if value else "none"
                 cells.append(
                     {
                         "criterion_id": criterion.id,
-                        "client_id": client.id,
+                        "column_id": col_id,
                         "color": color,
                         "text_value": value.text_value if value else None,
                         "notes": value.notes if value else None,
                         "computed": False,
                     }
                 )
-                non_macro_cells[(criterion.id, client.id)] = color
+                non_macro_cells[(criterion.id, col_id)] = color
 
     for criterion in macro_criteria:
-        for client in clients:
-            color = _compute_macro_color(criterion, client.id, non_macro_cells)
+        for col in columns:
+            color = _compute_macro_color(
+                criterion, col["id"], non_macro_cells
+            )
             cells.append(
                 {
                     "criterion_id": criterion.id,
-                    "client_id": client.id,
+                    "column_id": col["id"],
                     "color": color,
                     "text_value": None,
                     "notes": None,
@@ -369,9 +444,10 @@ def get_board(db: Session, week: date | None = None) -> dict:
 
     return {
         "week_start": week_start,
+        "scope": scope,
         "groups": list_groups(db),
         "criteria": criteria,
-        "clients": [{"id": c.id, "name": c.name} for c in clients],
+        "columns": columns,
         "cells": cells,
     }
 
@@ -381,10 +457,10 @@ _COLOR_SCORE = {"red": 3, "yellow": 2, "green": 1}
 
 def _compute_macro_color(
     criterion: FarolCriterion,
-    client_id: int,
+    column_id: int,
     non_macro_cells: dict[tuple[int, int], str],
 ) -> str:
-    """Média ponderada das cores dos critérios não-macro para o cliente.
+    """Média ponderada das cores dos critérios não-macro para a coluna.
 
     red=3, yellow=2, green=1, none é ignorado (não distorce o resultado).
     Pesos vêm de criterion.weights = {criterion_id_str: peso_relativo}.
@@ -400,7 +476,7 @@ def _compute_macro_color(
             continue
         if not weight or weight <= 0:
             continue
-        color = non_macro_cells.get((crit_id, client_id))
+        color = non_macro_cells.get((crit_id, column_id))
         score = _COLOR_SCORE.get(color or "")
         if score is None:
             continue
@@ -416,34 +492,80 @@ def _compute_macro_color(
     return "green"
 
 
+def _resolve_client_for_column(
+    db: Session, scope: str, column_id: int
+) -> Client:
+    """Dado scope + column_id, devolve o Client associado.
+
+    scope='client' → o próprio. scope='project' → cliente do contrato pai.
+    """
+    if scope == "client":
+        client = db.query(Client).filter(Client.id == column_id).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        return client
+    project = (
+        db.query(Project)
+        .options(joinedload(Project.contract).joinedload(Contract.client))
+        .filter(Project.id == column_id)
+        .first()
+    )
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project.contract.client
+
+
 def get_cell_history(
-    db: Session, criterion_id: int, client_id: int, weeks: int
+    db: Session,
+    criterion_id: int,
+    scope: str,
+    column_id: int,
+    weeks: int,
 ) -> list[dict]:
-    """Últimas N semanas (incluindo a atual) para a célula."""
+    """Histórico unificado: para o cliente associado à coluna,
+    devolve por semana TODAS as entries (do próprio cliente E dos projetos dele).
+
+    Entry shape:
+      week_start, target_kind ('client'|'project'), target_id, target_name,
+      color, text_value, notes, computed
+    """
+    _validate_scope(scope)
     criterion = get_criterion(db, criterion_id)
-    if not db.query(Client).filter(Client.id == client_id).first():
-        raise HTTPException(status_code=404, detail="Client not found")
+    client = _resolve_client_for_column(db, scope, column_id)
 
     current = iso_week_start(date.today())
     week_list = [current - timedelta(weeks=i) for i in range(weeks)]
-    week_list.reverse()  # mais antiga primeiro
+    week_list.reverse()
+
+    # Coleta IDs dos projetos do cliente (todos, não só active — histórico).
+    projects = (
+        db.query(Project)
+        .join(Contract, Project.contract_id == Contract.id)
+        .filter(Contract.client_id == client.id)
+        .all()
+    )
+    project_by_id = {p.id: p for p in projects}
 
     if criterion.kind == "calculated_allocation":
-        # Não temos snapshot — devolve o estado atual em todas as semanas.
-        client = (
+        # Sem snapshot: usa estado atual. Mostra apenas o cliente
+        # (projetos herdam a mesma cor do contrato pai, então seriam redundantes).
+        client_full = (
             db.query(Client)
             .options(
                 joinedload(Client.contracts)
                 .joinedload(Contract.contract_roles)
                 .joinedload(ContractRole.allocations),
             )
-            .filter(Client.id == client_id)
+            .filter(Client.id == client.id)
             .first()
         )
-        color = _compute_allocation_color(client, date.today())
+        color = _compute_allocation_color(client_full, date.today())
         return [
             {
                 "week_start": w,
+                "target_kind": "client",
+                "target_id": client.id,
+                "target_name": client.name,
                 "color": color,
                 "text_value": None,
                 "notes": None,
@@ -452,46 +574,79 @@ def get_cell_history(
             for w in week_list
         ]
 
+    project_ids = [p.id for p in projects]
     rows = (
         db.query(FarolValue)
         .filter(
             FarolValue.criterion_id == criterion_id,
-            FarolValue.client_id == client_id,
             FarolValue.week_start.in_(week_list),
+        )
+        .filter(
+            (FarolValue.client_id == client.id)
+            | (
+                FarolValue.project_id.in_(project_ids)
+                if project_ids
+                else False
+            )
         )
         .all()
     )
-    by_week = {r.week_start: r for r in rows}
-    return [
-        {
-            "week_start": w,
-            "color": by_week[w].color if w in by_week else "none",
-            "text_value": by_week[w].text_value if w in by_week else None,
-            "notes": by_week[w].notes if w in by_week else None,
-            "computed": False,
-        }
-        for w in week_list
-    ]
+
+    result: list[dict] = []
+    for r in rows:
+        if r.client_id is not None:
+            result.append(
+                {
+                    "week_start": r.week_start,
+                    "target_kind": "client",
+                    "target_id": client.id,
+                    "target_name": client.name,
+                    "color": r.color,
+                    "text_value": r.text_value,
+                    "notes": r.notes,
+                    "computed": False,
+                }
+            )
+        elif r.project_id is not None and r.project_id in project_by_id:
+            p = project_by_id[r.project_id]
+            result.append(
+                {
+                    "week_start": r.week_start,
+                    "target_kind": "project",
+                    "target_id": p.id,
+                    "target_name": p.name,
+                    "color": r.color,
+                    "text_value": r.text_value,
+                    "notes": r.notes,
+                    "computed": False,
+                }
+            )
+    result.sort(key=lambda e: (e["week_start"], e["target_kind"], e["target_id"]))
+    return result
 
 
-def get_trend(db: Session, weeks: int) -> dict:
+def get_trend(db: Session, weeks: int, scope: str = "client") -> dict:
     """Série temporal: por semana, contagem de cada cor (todos os critérios e
-    clientes ativos somados). Critérios calculados ficam de fora (não temos
+    colunas do scope somados). Critérios calculados ficam de fora (não temos
     snapshot)."""
+    _validate_scope(scope)
     current = iso_week_start(date.today())
     week_list = [current - timedelta(weeks=i) for i in range(weeks)]
     week_list.reverse()
 
-    rows = (
-        db.query(
-            FarolValue.week_start,
-            FarolValue.color,
-            func.count(FarolValue.id),
-        )
-        .filter(FarolValue.week_start.in_(week_list))
-        .group_by(FarolValue.week_start, FarolValue.color)
-        .all()
-    )
+    base_query = db.query(
+        FarolValue.week_start,
+        FarolValue.color,
+        func.count(FarolValue.id),
+    ).filter(FarolValue.week_start.in_(week_list))
+    if scope == "client":
+        base_query = base_query.filter(FarolValue.client_id.isnot(None))
+    else:
+        base_query = base_query.filter(FarolValue.project_id.isnot(None))
+
+    rows = base_query.group_by(
+        FarolValue.week_start, FarolValue.color
+    ).all()
 
     counts: dict[date, dict[str, int]] = defaultdict(
         lambda: {c: 0 for c in FAROL_COLORS}

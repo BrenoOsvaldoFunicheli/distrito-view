@@ -14,6 +14,8 @@ class UserResponse(BaseModel):
     name: str | None
     is_active: bool
     is_admin: bool
+    groups: list[str] = []
+    areas: list[str] = []
     created_at: datetime
     updated_at: datetime
 
@@ -25,12 +27,14 @@ class UserCreateRequest(BaseModel):
     password: str
     name: str | None = None
     is_admin: bool = False
+    group_ids: list[int] = []
 
 
 class UserUpdateRequest(BaseModel):
     name: str | None = None
     is_admin: bool | None = None
     is_active: bool | None = None
+    group_ids: list[int] | None = None
 
 
 class ResetPasswordRequest(BaseModel):

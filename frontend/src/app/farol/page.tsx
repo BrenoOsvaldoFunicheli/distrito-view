@@ -5,22 +5,45 @@ import Link from "next/link";
 import { Settings2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { EditCriteriaDialog } from "@/components/farol/edit-criteria-dialog";
 import { FarolBoardTable } from "@/components/farol/farol-board";
 import { WeekSelector } from "@/components/farol/week-selector";
 import { useFarolBoard } from "@/hooks/use-farol";
+import type { FarolScope } from "@/lib/types";
 import { formatYmd, todayWeekStart } from "@/lib/week";
+
+const SCOPE_STORAGE_KEY = "distrito.farol.scope";
 
 export default function FarolPage() {
   const [editing, setEditing] = useState(false);
   const [week, setWeek] = useState<string>(() => formatYmd(todayWeekStart()));
-  const { mutate } = useFarolBoard(week);
+  const [scope, setScope] = useState<FarolScope>(() => {
+    if (typeof window === "undefined") return "client";
+    const v = localStorage.getItem(SCOPE_STORAGE_KEY);
+    return v === "project" ? "project" : "client";
+  });
+  const { mutate } = useFarolBoard(week, scope);
+
+  const handleScopeChange = (value: string) => {
+    const next = value === "project" ? "project" : "client";
+    setScope(next);
+    localStorage.setItem(SCOPE_STORAGE_KEY, next);
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Farol"
-        description="Status visual por cliente e critério"
+        description={
+          scope === "client"
+            ? "Status visual por cliente e critério"
+            : "Status visual por projeto e critério"
+        }
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" asChild>
@@ -36,8 +59,16 @@ export default function FarolPage() {
           </div>
         }
       />
-      <WeekSelector week={week} onChange={setWeek} />
-      <FarolBoardTable week={week} />
+      <div className="flex flex-wrap items-center gap-3">
+        <WeekSelector week={week} onChange={setWeek} />
+        <Tabs value={scope} onValueChange={handleScopeChange}>
+          <TabsList>
+            <TabsTrigger value="client">Por Cliente</TabsTrigger>
+            <TabsTrigger value="project">Por Projeto</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      <FarolBoardTable week={week} scope={scope} />
       <EditCriteriaDialog
         open={editing}
         onOpenChange={setEditing}

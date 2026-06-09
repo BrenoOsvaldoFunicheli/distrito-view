@@ -63,6 +63,26 @@ export interface Contract {
   updated_at: string;
 }
 
+export type ProjectStatus = "active" | "paused" | "completed";
+
+export interface Project {
+  id: number;
+  contract_id: number;
+  name: string;
+  description: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: ProjectStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectWithContext extends Project {
+  contract_name: string;
+  client_id: number;
+  client_name: string;
+}
+
 export interface Allocation {
   id: number;
   person_id: number;
@@ -210,6 +230,17 @@ export interface CapacityPlanningData {
   totals: CapacityTotals;
 }
 
+export interface OpenSlotRole {
+  role_id: number;
+  role_name: string;
+  unfilled_slots: number;
+}
+
+export interface OpenSlotsData {
+  total: number;
+  roles: OpenSlotRole[];
+}
+
 export type ProposalStage = string;
 
 export interface ProposalStageDef {
@@ -229,8 +260,26 @@ export interface AuthUser {
   name: string | null;
   is_active: boolean;
   is_admin: boolean;
+  groups: string[];
+  areas: string[];
   created_at: string;
   updated_at: string;
+}
+
+export interface UserGroup {
+  id: number;
+  name: string;
+  description: string | null;
+  areas: string[];
+  member_ids: number[];
+  member_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AreaInfo {
+  key: string;
+  label: string;
 }
 
 export type FarolColor = "none" | "green" | "yellow" | "red";
@@ -257,14 +306,17 @@ export interface FarolGroup {
   updated_at: string;
 }
 
-export interface FarolBoardClient {
+export type FarolScope = "client" | "project";
+
+export interface FarolBoardColumn {
   id: number;
   name: string;
+  subtitle: string | null;
 }
 
 export interface FarolBoardCell {
   criterion_id: number;
-  client_id: number;
+  column_id: number;
   color: FarolColor;
   text_value: string | null;
   notes: string | null;
@@ -273,14 +325,18 @@ export interface FarolBoardCell {
 
 export interface FarolBoard {
   week_start: string;
+  scope: FarolScope;
   groups: FarolGroup[];
   criteria: FarolCriterion[];
-  clients: FarolBoardClient[];
+  columns: FarolBoardColumn[];
   cells: FarolBoardCell[];
 }
 
 export interface FarolHistoryEntry {
   week_start: string;
+  target_kind: "client" | "project";
+  target_id: number;
+  target_name: string;
   color: FarolColor;
   text_value: string | null;
   notes: string | null;

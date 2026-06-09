@@ -24,6 +24,8 @@ def get_user(db: Session, user_id: int) -> User:
 
 
 def create_user(db: Session, data: UserCreateRequest) -> User:
+    from app.services import user_group_service
+
     email = data.email.strip().lower()
     if not email:
         raise HTTPException(status_code=400, detail="Email é obrigatório")
@@ -39,16 +41,24 @@ def create_user(db: Session, data: UserCreateRequest) -> User:
         is_active=True,
     )
     db.add(user)
+    db.flush()
+    if data.group_ids:
+        user_group_service.replace_user_groups(db, user.id, data.group_ids)
     db.commit()
     db.refresh(user)
     return user
 
 
 def update_user(db: Session, user_id: int, data: UserUpdateRequest) -> User:
+    from app.services import user_group_service
+
     user = get_user(db, user_id)
     payload = data.model_dump(exclude_unset=True)
+    group_ids = payload.pop("group_ids", None)
     for key, value in payload.items():
         setattr(user, key, value)
+    if group_ids is not None:
+        user_group_service.replace_user_groups(db, user_id, group_ids)
     db.commit()
     db.refresh(user)
     return user

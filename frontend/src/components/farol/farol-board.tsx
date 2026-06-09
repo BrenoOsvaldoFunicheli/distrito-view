@@ -9,19 +9,21 @@ import type {
   FarolColor,
   FarolCriterion,
   FarolGroup,
+  FarolScope,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { FarolCell } from "./farol-cell";
 
 interface FarolBoardTableProps {
   week: string;
+  scope: FarolScope;
 }
 
 const COLLAPSED_GROUPS_KEY = "distrito.farol.collapsedGroups";
 const NO_GROUP_KEY = "__none__";
 
-export function FarolBoardTable({ week }: FarolBoardTableProps) {
-  const { data, mutate, isLoading } = useFarolBoard(week);
+export function FarolBoardTable({ week, scope }: FarolBoardTableProps) {
+  const { data, mutate, isLoading } = useFarolBoard(week, scope);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -53,19 +55,24 @@ export function FarolBoardTable({ week }: FarolBoardTableProps) {
       </p>
     );
 
-  if (data.clients.length === 0)
+  if (data.columns.length === 0)
     return (
       <p className="text-sm text-muted-foreground">
-        Nenhum cliente com contrato ativo.
+        {scope === "client"
+          ? "Nenhum cliente com contrato ativo."
+          : "Nenhum projeto ativo."}
       </p>
     );
 
   const cellMap = new Map<string, FarolBoardCell>();
   data.cells.forEach((c) => {
-    cellMap.set(`${c.criterion_id}:${c.client_id}`, c);
+    cellMap.set(`${c.criterion_id}:${c.column_id}`, c);
   });
 
   const sections = buildSections(data.groups, data.criteria);
+
+  const columnLink = (id: number) =>
+    scope === "client" ? `/clients/${id}` : `/portfolio`;
 
   return (
     <div className="overflow-x-auto rounded-lg border bg-card">
@@ -75,17 +82,22 @@ export function FarolBoardTable({ week }: FarolBoardTableProps) {
             <th className="sticky left-0 z-10 bg-muted/40 border-b border-r px-3 py-2 text-left text-xs font-semibold uppercase">
               Critério
             </th>
-            {data.clients.map((client) => (
+            {data.columns.map((col) => (
               <th
-                key={client.id}
+                key={col.id}
                 className="border-b px-2 py-2 text-xs font-semibold whitespace-nowrap"
               >
                 <Link
-                  href={`/clients/${client.id}`}
+                  href={columnLink(col.id)}
                   className="hover:underline"
                 >
-                  {client.name}
+                  {col.name}
                 </Link>
+                {col.subtitle && (
+                  <div className="text-[10px] font-normal text-muted-foreground normal-case">
+                    {col.subtitle}
+                  </div>
+                )}
               </th>
             ))}
           </tr>
@@ -118,15 +130,15 @@ export function FarolBoardTable({ week }: FarolBoardTableProps) {
                         </span>
                       </div>
                     </td>
-                    {data.clients.map((client) => {
+                    {data.columns.map((col) => {
                       const color = computeGroupColor(
                         section.criteria,
-                        client.id,
+                        col.id,
                         cellMap,
                       );
                       return (
                         <td
-                          key={client.id}
+                          key={col.id}
                           className={cn(
                             "border-l p-0 text-center align-middle",
                             COLOR_BG[color],
@@ -149,22 +161,23 @@ export function FarolBoardTable({ week }: FarolBoardTableProps) {
                       >
                         {criterion.label}
                       </td>
-                      {data.clients.map((client) => {
+                      {data.columns.map((col) => {
                         const cell = cellMap.get(
-                          `${criterion.id}:${client.id}`,
+                          `${criterion.id}:${col.id}`,
                         );
                         if (!cell)
-                          return <td key={client.id} className="border-l" />;
+                          return <td key={col.id} className="border-l" />;
                         return (
                           <td
-                            key={client.id}
+                            key={col.id}
                             className="border-l p-0 text-center align-middle"
                           >
                             <FarolCell
                               criterion={criterion}
                               cell={cell}
                               week={week}
-                              clientName={client.name}
+                              scope={scope}
+                              columnName={col.name}
                               onChanged={() => mutate()}
                             />
                           </td>
@@ -199,14 +212,14 @@ const COLOR_BG: Record<FarolColor, string> = {
 
 function computeGroupColor(
   criteria: FarolCriterion[],
-  clientId: number,
+  columnId: number,
   cellMap: Map<string, FarolBoardCell>,
 ): FarolColor {
   let sum = 0;
   let count = 0;
   for (const c of criteria) {
     if (!c.show_color) continue;
-    const cell = cellMap.get(`${c.id}:${clientId}`);
+    const cell = cellMap.get(`${c.id}:${columnId}`);
     const score = COLOR_SCORE[cell?.color ?? ""];
     if (score === undefined) continue;
     sum += score;

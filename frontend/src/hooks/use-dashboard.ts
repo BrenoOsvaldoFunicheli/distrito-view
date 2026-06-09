@@ -9,6 +9,7 @@ import type {
   TimelineEntry,
   AllocationSummaryEntry,
   CapacityPlanningData,
+  OpenSlotsData,
 } from "@/lib/types";
 
 export function useUnallocated(daysAhead = 30) {
@@ -21,6 +22,13 @@ export function useUnallocated(daysAhead = 30) {
 export function useUpcomingNeeds(daysAhead = 60) {
   return useSWR<{ data: UpcomingNeed[] }>(
     `/api/v1/dashboard/upcoming-needs?days_ahead=${daysAhead}`,
+    api.get,
+  );
+}
+
+export function useOpenSlots(daysAhead = 60) {
+  return useSWR<{ data: OpenSlotsData }>(
+    `/api/v1/dashboard/open-slots?days_ahead=${daysAhead}`,
     api.get,
   );
 }

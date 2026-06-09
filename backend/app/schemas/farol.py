@@ -78,14 +78,15 @@ class FarolCellUpdate(BaseModel):
     notes: str | None = None
 
 
-class FarolBoardClient(BaseModel):
+class FarolBoardColumn(BaseModel):
     id: int
     name: str
+    subtitle: str | None = None
 
 
 class FarolBoardCell(BaseModel):
     criterion_id: int
-    client_id: int
+    column_id: int
     color: str
     text_value: str | None
     notes: str | None
@@ -94,14 +95,18 @@ class FarolBoardCell(BaseModel):
 
 class FarolBoardResponse(BaseModel):
     week_start: date
+    scope: str
     groups: list["FarolGroupResponse"]
     criteria: list[FarolCriterionResponse]
-    clients: list[FarolBoardClient]
+    columns: list[FarolBoardColumn]
     cells: list[FarolBoardCell]
 
 
 class FarolHistoryEntry(BaseModel):
     week_start: date
+    target_kind: str
+    target_id: int
+    target_name: str
     color: str
     text_value: str | None
     notes: str | None

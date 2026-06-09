@@ -33,3 +33,6 @@ class Contract(Base):
     contract_roles: Mapped[list["ContractRole"]] = relationship(  # noqa: F821
         back_populates="contract", cascade="all, delete-orphan"
     )
+    projects: Mapped[list["Project"]] = relationship(  # noqa: F821
+        back_populates="contract", cascade="all, delete-orphan"
+    )

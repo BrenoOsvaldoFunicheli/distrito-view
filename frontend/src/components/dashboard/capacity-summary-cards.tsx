@@ -2,7 +2,7 @@
 
 import { Rocket, UserCheck, UserMinus } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { useUtilization } from "@/hooks/use-dashboard";
+import { useOpenSlots, useUtilization } from "@/hooks/use-dashboard";
 import type { CapacityPlanningData } from "@/lib/types";
 
 function fmtNum(n: number): string {
@@ -20,6 +20,8 @@ export function CapacitySummaryCards({
 }: CapacitySummaryCardsProps) {
   const { data: utilizationData } = useUtilization();
   const utilization = utilizationData?.data;
+  const { data: openSlotsData } = useOpenSlots(60);
+  const openSlots = openSlotsData?.data;
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -42,10 +44,20 @@ export function CapacitySummaryCards({
     );
   }
 
-  const totalUnfilled = capacity.roles.reduce(
-    (sum, r) => sum + r.unfilled_slots,
-    0,
-  );
+  // "Vagas em aberto" usa o endpoint /open-slots (próximos 60 dias, inclui
+  // contratos a firmar). Fallback para o capacity (mês atual) durante o load.
+  const totalUnfilled = openSlots
+    ? openSlots.total
+    : capacity.roles.reduce((sum, r) => sum + r.unfilled_slots, 0);
+  const unfilledRoles = openSlots
+    ? openSlots.roles
+    : capacity.roles
+        .filter((r) => r.unfilled_slots > 0)
+        .map((r) => ({
+          role_id: r.role_id,
+          role_name: r.role_name,
+          unfilled_slots: r.unfilled_slots,
+        }));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -141,20 +153,17 @@ export function CapacitySummaryCards({
           <p className="text-2xl font-bold">{fmtNum(totalUnfilled)}</p>
         </CardHeader>
         <CardContent className="space-y-1.5">
-          {capacity.roles.map((r) => {
-            if (r.unfilled_slots === 0) return null;
-            return (
-              <div
-                key={r.role_id}
-                className="flex items-center justify-between text-sm"
-              >
-                <span>{r.role_name}</span>
-                <span className="font-medium text-red-600">
-                  {fmtNum(r.unfilled_slots)}
-                </span>
-              </div>
-            );
-          })}
+          {unfilledRoles.map((r) => (
+            <div
+              key={r.role_id}
+              className="flex items-center justify-between text-sm"
+            >
+              <span>{r.role_name}</span>
+              <span className="font-medium text-red-600">
+                {fmtNum(r.unfilled_slots)}
+              </span>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>

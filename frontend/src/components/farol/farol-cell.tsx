@@ -17,6 +17,7 @@ import type {
   FarolBoardCell,
   FarolColor,
   FarolCriterion,
+  FarolScope,
 } from "@/lib/types";
 import { CellHistoryDialog } from "./cell-history-dialog";
 
@@ -24,7 +25,8 @@ interface FarolCellProps {
   criterion: FarolCriterion;
   cell: FarolBoardCell;
   week: string;
-  clientName: string;
+  scope: FarolScope;
+  columnName: string;
   onChanged: () => void;
 }
 
@@ -46,7 +48,8 @@ export function FarolCell({
   criterion,
   cell,
   week,
-  clientName,
+  scope,
+  columnName,
   onChanged,
 }: FarolCellProps) {
   const [open, setOpen] = useState(false);
@@ -61,7 +64,7 @@ export function FarolCell({
   }, [cell.text_value, cell.notes]);
 
   const isReadonly = cell.computed;
-  const valuesUrl = `/api/v1/farol/criteria/${criterion.id}/values/${cell.client_id}?week=${week}`;
+  const valuesUrl = `/api/v1/farol/criteria/${criterion.id}/values/${scope}/${cell.column_id}?week=${week}`;
 
   const setColor = async (color: FarolColor) => {
     setSaving(true);
@@ -199,8 +202,9 @@ export function FarolCell({
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         criterion={criterion}
-        clientId={cell.client_id}
-        clientName={clientName}
+        scope={scope}
+        columnId={cell.column_id}
+        columnName={columnName}
       />
     </>
   );

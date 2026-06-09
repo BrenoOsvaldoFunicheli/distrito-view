@@ -15,6 +15,7 @@ import {
   TrendingUp,
   KanbanSquare,
   Lightbulb,
+  FolderKanban,
   Shield,
   User as UserIcon,
   ChevronDown,
@@ -31,6 +32,7 @@ interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  area?: string;
 }
 
 interface NavGroup {
@@ -42,6 +44,7 @@ const dashboardItem: NavItem = {
   href: "/",
   label: "Dashboard",
   icon: LayoutDashboard,
+  area: "dashboard",
 };
 
 interface NavGroupDef extends NavGroup {
@@ -52,47 +55,66 @@ const groups: NavGroupDef[] = [
   {
     label: "Indicadores",
     items: [
-      { href: "/projects", label: "Gantt Projetos", icon: GanttChart },
+      { href: "/projects", label: "Gantt Projetos", icon: GanttChart, area: "gantt" },
       {
         href: "/proposals",
         label: "Propostas Técnicas",
         icon: KanbanSquare,
+        area: "propostas",
       },
-      { href: "/farol", label: "Farol", icon: Lightbulb },
+      { href: "/farol", label: "Farol", icon: Lightbulb, area: "farol" },
     ],
   },
   {
     label: "Clientes",
     items: [
-      { href: "/clients", label: "Clientes", icon: Building2 },
-      { href: "/contracts", label: "Contratos", icon: FileText },
+      { href: "/clients", label: "Clientes", icon: Building2, area: "clientes" },
+      { href: "/contracts", label: "Contratos", icon: FileText, area: "contratos" },
+      {
+        href: "/portfolio",
+        label: "Portfólio",
+        icon: FolderKanban,
+        area: "contratos",
+      },
     ],
   },
   {
     label: "Pessoas",
     items: [
-      { href: "/people", label: "Pessoas", icon: Users },
+      { href: "/people", label: "Pessoas", icon: Users, area: "pessoas" },
       {
         href: "/allocations/people",
         label: "Alocação Pessoas",
         icon: UserCheck,
+        area: "pessoas",
       },
-      { href: "/allocations", label: "Timeline", icon: Calendar },
-      { href: "/capacity", label: "Capacidade", icon: TrendingUp },
+      { href: "/allocations", label: "Timeline", icon: Calendar, area: "pessoas" },
+      { href: "/capacity", label: "Capacidade", icon: TrendingUp, area: "capacidade" },
     ],
   },
   {
     label: "Administração",
     adminOnly: true,
-    items: [{ href: "/admin/users", label: "Usuários", icon: Shield }],
+    items: [
+      { href: "/admin", label: "Painel Admin", icon: LayoutDashboard },
+      { href: "/admin/users", label: "Usuários", icon: Shield },
+      { href: "/admin/groups", label: "Grupos", icon: Users },
+    ],
   },
 ];
+
+function canAccess(item: NavItem, isAdmin: boolean, areas: string[]): boolean {
+  if (isAdmin) return true;
+  if (!item.area) return true;
+  return areas.includes(item.area);
+}
 
 const STORAGE_KEY = "distrito.sidebar.collapsed";
 const GROUPS_STORAGE_KEY = "distrito.sidebar.openGroups";
 
 function isItemActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
+  if (href === "/admin") return pathname === "/admin";
   if (href === "/allocations")
     return pathname === "/allocations" || pathname === "/allocations/new";
   return pathname.startsWith(href);
@@ -205,44 +227,50 @@ export function AppSidebar() {
       <nav
         className={cn("flex-1 overflow-y-auto", collapsed ? "p-2" : "p-4")}
       >
-        <div className="space-y-1">{renderItem(dashboardItem)}</div>
+        {(user?.is_admin || canAccess(dashboardItem, false, user?.areas ?? [])) && (
+          <div className="space-y-1">{renderItem(dashboardItem)}</div>
+        )}
         {groups
           .filter((g) => !g.adminOnly || user?.is_admin)
           .map((group) => {
-          const open = openGroups[group.label] ?? true;
-          if (collapsed) {
+            const visibleItems = group.items.filter((it) =>
+              canAccess(it, !!user?.is_admin, user?.areas ?? []),
+            );
+            if (visibleItems.length === 0) return null;
+            const open = openGroups[group.label] ?? true;
+            if (collapsed) {
+              return (
+                <div key={group.label} className="mt-3 space-y-1">
+                  {visibleItems.map(renderItem)}
+                </div>
+              );
+            }
+            const groupHasActive = visibleItems.some((i) =>
+              isItemActive(pathname, i.href),
+            );
             return (
-              <div key={group.label} className="mt-3 space-y-1">
-                {group.items.map(renderItem)}
+              <div key={group.label} className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.label)}
+                  className="flex w-full items-center justify-between px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                >
+                  <span>{group.label}</span>
+                  <ChevronDown
+                    className={cn(
+                      "h-3 w-3 transition-transform",
+                      !open && "-rotate-90",
+                    )}
+                  />
+                </button>
+                {(open || groupHasActive) && (
+                  <div className="mt-1 space-y-1">
+                    {visibleItems.map(renderItem)}
+                  </div>
+                )}
               </div>
             );
-          }
-          const groupHasActive = group.items.some((i) =>
-            isItemActive(pathname, i.href),
-          );
-          return (
-            <div key={group.label} className="mt-4">
-              <button
-                type="button"
-                onClick={() => toggleGroup(group.label)}
-                className="flex w-full items-center justify-between px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
-              >
-                <span>{group.label}</span>
-                <ChevronDown
-                  className={cn(
-                    "h-3 w-3 transition-transform",
-                    !open && "-rotate-90",
-                  )}
-                />
-              </button>
-              {(open || groupHasActive) && (
-                <div className="mt-1 space-y-1">
-                  {group.items.map(renderItem)}
-                </div>
-              )}
-            </div>
-          );
-        })}
+          })}
       </nav>
       <div className={cn("border-t space-y-1", collapsed ? "p-2" : "p-3")}>
         {!collapsed && user && (

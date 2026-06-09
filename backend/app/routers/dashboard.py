@@ -25,6 +25,14 @@ def get_upcoming_needs(
     return {"data": dashboard_service.get_upcoming_needs(db, days_ahead)}
 
 
+@router.get("/open-slots")
+def get_open_slots(
+    days_ahead: int = Query(default=60, ge=1, le=365),
+    db: Session = Depends(get_db),
+):
+    return {"data": dashboard_service.get_open_slots(db, days_ahead)}
+
+
 @router.get("/allocation-summary")
 def get_allocation_summary(
     from_date: date = Query(default=None),

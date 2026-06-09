@@ -9,7 +9,8 @@ from app.schemas.contract import (
     ContractRoleUpdate,
     ContractUpdate,
 )
-from app.services import contract_service
+from app.schemas.project import ProjectCreate, ProjectResponse
+from app.services import contract_service, project_service
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
@@ -67,3 +68,25 @@ def delete_contract_role(
     contract_id: int, role_id: int, db: Session = Depends(get_db)
 ):
     contract_service.delete_contract_role(db, contract_id, role_id)
+
+
+@router.get(
+    "/{contract_id}/projects", response_model=list[ProjectResponse]
+)
+def list_contract_projects(
+    contract_id: int, db: Session = Depends(get_db)
+):
+    return project_service.list_projects_for_contract(db, contract_id)
+
+
+@router.post(
+    "/{contract_id}/projects",
+    response_model=ProjectResponse,
+    status_code=201,
+)
+def create_contract_project(
+    contract_id: int,
+    data: ProjectCreate,
+    db: Session = Depends(get_db),
+):
+    return project_service.create_project(db, contract_id, data)

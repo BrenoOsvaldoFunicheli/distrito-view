@@ -169,6 +169,71 @@ def get_upcoming_needs(db: Session, days_ahead: int = 60) -> list[dict]:
     return results
 
 
+def get_open_slots(db: Session, days_ahead: int = 60) -> dict:
+    """Vagas em aberto com início próximo (próximos N dias).
+
+    Usa o mesmo conjunto de contratos de get_upcoming_needs (active + draft +
+    pipeline) — assim este card fica consistente com 'Necessidades de Alocação'.
+
+    Retorna shape compatível com o card do dashboard:
+      { total: int, roles: [{role_id, role_name, unfilled_slots}, ...] }
+    """
+    today = date.today()
+    cutoff = today + timedelta(days=days_ahead)
+
+    contract_roles = (
+        db.query(ContractRole)
+        .options(
+            joinedload(ContractRole.contract),
+            joinedload(ContractRole.role),
+            joinedload(ContractRole.allocations),
+        )
+        .join(ContractRole.contract)
+        .filter(
+            Contract.status.in_(["active", "draft", "pipeline"]),
+            Contract.end_date > today,
+        )
+        .all()
+    )
+
+    by_role: dict[int, dict] = {}
+    for cr in contract_roles:
+        role_start, role_end = _role_window(cr)
+        if role_end <= today:
+            continue
+        # Considera só vagas cujo início ainda não passou muito (até cutoff).
+        # Inclui vagas atrasadas (role_start < today): elas seguem em aberto.
+        if role_start > cutoff:
+            continue
+        active_allocs = [
+            a
+            for a in cr.allocations
+            if a.start_date < role_end and a.end_date > today
+        ]
+        filled = len(active_allocs)
+        unfilled = max(0, cr.quantity - filled)
+        if unfilled == 0:
+            continue
+        unfilled_fte = unfilled * cr.allocation_percentage / 100
+
+        rid = cr.role_id
+        if rid not in by_role:
+            by_role[rid] = {
+                "role_id": rid,
+                "role_name": cr.role.name,
+                "unfilled_slots": 0,
+            }
+        by_role[rid]["unfilled_slots"] += unfilled_fte
+
+    roles = sorted(
+        by_role.values(),
+        key=lambda r: r["unfilled_slots"],
+        reverse=True,
+    )
+    total = sum(r["unfilled_slots"] for r in roles)
+    return {"total": total, "roles": roles}
+
+
 def get_allocation_summary(db: Session, from_date: date, to_date: date) -> list[dict]:
     today = date.today()
     people = (

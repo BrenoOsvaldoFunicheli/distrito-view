@@ -37,6 +37,7 @@ import { useContract } from "@/hooks/use-contracts";
 import { useAllocations } from "@/hooks/use-allocations";
 import { usePeople } from "@/hooks/use-people";
 import { useRoles } from "@/hooks/use-roles";
+import { ContractProjectsCard } from "@/components/projects/contract-projects-card";
 import { api } from "@/lib/api";
 import type { ContractRole } from "@/lib/types";
 
@@ -414,6 +415,8 @@ export default function ContractDetailPage({
           )}
         </CardContent>
       </Card>
+
+      <ContractProjectsCard contractId={contractId} />
 
       {/* Modal criar/editar vaga */}
       <Dialog open={vagaModalOpen} onOpenChange={setVagaModalOpen}>
