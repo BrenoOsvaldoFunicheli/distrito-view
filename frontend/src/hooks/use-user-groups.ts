@@ -11,3 +11,17 @@ export function useUserGroups() {
 export function useAreas() {
   return useSWR<{ areas: AreaInfo[] }>("/api/v1/admin/groups/areas", api.get);
 }
+
+export interface GroupMemberCandidate {
+  id: number;
+  email: string;
+  name: string | null;
+}
+
+/** Lista mínima de usuários para seleção de membros (acessível a quem gerencia grupos). */
+export function useGroupMemberCandidates(enabled = true) {
+  return useSWR<GroupMemberCandidate[]>(
+    enabled ? "/api/v1/admin/groups/member-candidates" : null,
+    api.get,
+  );
+}

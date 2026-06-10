@@ -20,6 +20,27 @@ def _validate_areas(areas: list[str]) -> list[str]:
     return cleaned
 
 
+def _enforce_grantable_areas(
+    db: Session, actor: User, new_areas: list[str], current_areas: set[str]
+) -> None:
+    """Garante que um não-admin só conceda áreas que possui.
+
+    Só valida as áreas *adicionadas* em relação ao estado atual do grupo,
+    permitindo preservar áreas preexistentes que o ator não possui.
+    """
+    if actor.is_admin:
+        return
+    allowed = get_user_areas(db, actor)
+    added = set(new_areas) - current_areas
+    forbidden = sorted(added - allowed)
+    if forbidden:
+        labels = ", ".join(AREA_LABELS.get(a, a) for a in forbidden)
+        raise HTTPException(
+            status_code=403,
+            detail=f"Você só pode conceder áreas que possui: {labels}",
+        )
+
+
 def _validate_users(db: Session, user_ids: list[int]) -> list[int]:
     if not user_ids:
         return []
@@ -74,13 +95,14 @@ def get_group_dict(db: Session, group_id: int) -> dict:
     return _to_dict(get_group(db, group_id))
 
 
-def create_group(db: Session, data: UserGroupCreate) -> dict:
+def create_group(db: Session, data: UserGroupCreate, actor: User) -> dict:
     name = data.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail="Nome é obrigatório")
     if db.query(UserGroup).filter(UserGroup.name == name).first():
         raise HTTPException(status_code=409, detail="Já existe um grupo com esse nome")
     areas = _validate_areas(data.areas)
+    _enforce_grantable_areas(db, actor, areas, current_areas=set())
     member_ids = _validate_users(db, data.member_ids)
     group = UserGroup(name=name, description=data.description)
     db.add(group)
@@ -93,7 +115,9 @@ def create_group(db: Session, data: UserGroupCreate) -> dict:
     return get_group_dict(db, group.id)
 
 
-def update_group(db: Session, group_id: int, data: UserGroupUpdate) -> dict:
+def update_group(
+    db: Session, group_id: int, data: UserGroupUpdate, actor: User
+) -> dict:
     group = get_group(db, group_id)
     payload = data.model_dump(exclude_unset=True)
 
@@ -116,6 +140,8 @@ def update_group(db: Session, group_id: int, data: UserGroupUpdate) -> dict:
 
     if "areas" in payload and payload["areas"] is not None:
         areas = _validate_areas(payload["areas"])
+        current_areas = {a.area for a in group.areas}
+        _enforce_grantable_areas(db, actor, areas, current_areas)
         db.query(UserGroupArea).filter(UserGroupArea.group_id == group_id).delete()
         for area in areas:
             db.add(UserGroupArea(group_id=group_id, area=area))
@@ -145,6 +171,16 @@ def delete_group(db: Session, group_id: int) -> None:
 
 def list_areas() -> list[dict]:
     return [{"key": area, "label": AREA_LABELS.get(area, area)} for area in AREAS]
+
+
+def list_member_candidates(db: Session) -> list[User]:
+    """Usuários ativos disponíveis para virar membros de um grupo."""
+    return (
+        db.query(User)
+        .filter(User.is_active.is_(True))
+        .order_by(User.email)
+        .all()
+    )
 
 
 def get_user_areas(db: Session, user: User) -> set[str]:

@@ -29,10 +29,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/layout/page-header";
+import { useCurrentUser } from "@/hooks/use-auth";
 import { useUsers } from "@/hooks/use-users";
-import { useAreas, useUserGroups } from "@/hooks/use-user-groups";
+import {
+  useAreas,
+  useGroupMemberCandidates,
+  useUserGroups,
+} from "@/hooks/use-user-groups";
 import { api, ApiError } from "@/lib/api";
-import type { AreaInfo, AuthUser, UserGroup } from "@/lib/types";
+import type { AreaInfo, UserGroup } from "@/lib/types";
+
+/** Forma mínima de usuário usada na seleção de membros. */
+interface MemberOption {
+  id: number;
+  email: string;
+  name: string | null;
+}
 
 interface GroupsPanelProps {
   /** Mostra o PageHeader interno. Default `true` (uso standalone em /admin/groups). */
@@ -40,9 +52,25 @@ interface GroupsPanelProps {
 }
 
 export function GroupsPanel({ showHeader = true }: GroupsPanelProps) {
+  const { data: currentUser } = useCurrentUser();
+  const isAdmin = !!currentUser?.is_admin;
   const { data: groups, mutate, isLoading } = useUserGroups();
   const { data: areasResp } = useAreas();
-  const { data: users } = useUsers();
+  // Admin usa o endpoint completo de usuários; quem só gerencia grupos usa o
+  // endpoint mínimo de candidatos (auth/users é restrito a admin).
+  const { data: adminUsers } = useUsers(isAdmin);
+  const { data: candidateUsers } = useGroupMemberCandidates(!isAdmin);
+  const users: MemberOption[] = isAdmin
+    ? adminUsers ?? []
+    : candidateUsers ?? [];
+
+  // Áreas que o usuário atual pode conceder. Admin concede todas.
+  const grantableAreas = useMemo<AreaInfo[]>(() => {
+    const all = areasResp?.areas ?? [];
+    if (isAdmin) return all;
+    const own = new Set(currentUser?.areas ?? []);
+    return all.filter((a) => own.has(a.key));
+  }, [areasResp, isAdmin, currentUser]);
   const [editing, setEditing] = useState<UserGroup | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [error, setError] = useState("");
@@ -166,7 +194,8 @@ export function GroupsPanel({ showHeader = true }: GroupsPanelProps) {
         onOpenChange={setCreateOpen}
         group={null}
         areas={areasResp?.areas || []}
-        users={users || []}
+        grantableAreas={grantableAreas}
+        users={users}
         onSaved={refresh}
       />
       <GroupDialog
@@ -174,7 +203,8 @@ export function GroupsPanel({ showHeader = true }: GroupsPanelProps) {
         onOpenChange={(v) => !v && setEditing(null)}
         group={editing}
         areas={areasResp?.areas || []}
-        users={users || []}
+        grantableAreas={grantableAreas}
+        users={users}
         onSaved={refresh}
       />
     </div>
@@ -189,8 +219,11 @@ interface GroupDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   group: UserGroup | null;
+  /** Catálogo completo de áreas (para rotular áreas preexistentes). */
   areas: AreaInfo[];
-  users: AuthUser[];
+  /** Áreas que o usuário atual pode conceder/alterar. */
+  grantableAreas: AreaInfo[];
+  users: MemberOption[];
   onSaved: () => void;
 }
 
@@ -199,6 +232,7 @@ function GroupDialog({
   onOpenChange,
   group,
   areas,
+  grantableAreas,
   users,
   onSaved,
 }: GroupDialogProps) {
@@ -220,6 +254,19 @@ function GroupDialog({
       setError("");
     }
   }, [open, group]);
+
+  // Áreas exibidas: as que o usuário pode conceder + as preexistentes do grupo
+  // que ele NÃO pode alterar (mostradas marcadas e travadas, preservadas ao salvar).
+  const grantableKeys = useMemo(
+    () => new Set(grantableAreas.map((a) => a.key)),
+    [grantableAreas],
+  );
+  const lockedAreas = useMemo<AreaInfo[]>(() => {
+    const preexisting = group?.areas ?? [];
+    return preexisting
+      .filter((key) => !grantableKeys.has(key))
+      .map((key) => areas.find((a) => a.key === key) ?? { key, label: key });
+  }, [group, grantableKeys, areas]);
 
   const filteredUsers = useMemo(() => {
     if (!search.trim()) return users;
@@ -253,10 +300,12 @@ function GroupDialog({
     e.preventDefault();
     setSaving(true);
     setError("");
+    // Preserva áreas travadas (concedidas por admin) que o usuário não controla.
+    const lockedKeys = lockedAreas.map((a) => a.key);
     const body = {
       name,
       description: description || null,
-      areas: [...selectedAreas],
+      areas: [...new Set([...selectedAreas, ...lockedKeys])],
       member_ids: [...selectedUsers],
     };
     try {
@@ -305,7 +354,7 @@ function GroupDialog({
           <div className="space-y-2">
             <Label>Áreas liberadas</Label>
             <div className="grid grid-cols-2 gap-2 rounded border p-3">
-              {areas.map((a) => (
+              {grantableAreas.map((a) => (
                 <label key={a.key} className="flex items-center gap-2 text-sm">
                   <Checkbox
                     checked={selectedAreas.has(a.key)}
@@ -314,7 +363,22 @@ function GroupDialog({
                   {a.label}
                 </label>
               ))}
+              {lockedAreas.map((a) => (
+                <label
+                  key={a.key}
+                  className="flex items-center gap-2 text-sm text-muted-foreground"
+                  title="Área concedida por um administrador — você não pode alterá-la"
+                >
+                  <Checkbox checked disabled />
+                  {a.label}
+                </label>
+              ))}
             </div>
+            {grantableAreas.length === 0 && lockedAreas.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Você não possui áreas para conceder.
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Membros ({selectedUsers.size})</Label>
@@ -342,11 +406,6 @@ function GroupDialog({
                     {u.name && (
                       <span className="text-muted-foreground">
                         — {u.name}
-                      </span>
-                    )}
-                    {u.is_admin && (
-                      <span className="ml-auto rounded bg-purple-100 px-1.5 py-0.5 text-[10px] text-purple-800">
-                        admin
                       </span>
                     )}
                   </label>

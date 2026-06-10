@@ -24,6 +24,11 @@ const ROUTE_AREAS: Array<{ prefix: string; area: string }> = [
 
 const ADMIN_PREFIXES = ["/admin"];
 
+// Rotas sob /admin que são liberadas por área (não exigem is_admin).
+const ADMIN_AREA_EXCEPTIONS: Array<{ prefix: string; area: string }> = [
+  { prefix: "/admin/groups", area: "gestao_grupos" },
+];
+
 function getRouteArea(pathname: string): string | null {
   if (pathname === "/") return "dashboard";
   for (const { prefix, area } of ROUTE_AREAS) {
@@ -67,14 +72,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Verifica acesso por área (perfil/admin têm regras próprias)
   const isAdminArea = isAdminRoute(pathname);
+  const adminException = ADMIN_AREA_EXCEPTIONS.find(
+    ({ prefix }) => pathname === prefix || pathname.startsWith(prefix + "/"),
+  );
   const requiredArea = getRouteArea(pathname);
   const hasAccess =
     user.is_admin ||
-    (isAdminArea
-      ? false
-      : requiredArea
-        ? user.areas.includes(requiredArea)
-        : true);
+    (adminException
+      ? user.areas.includes(adminException.area)
+      : isAdminArea
+        ? false
+        : requiredArea
+          ? user.areas.includes(requiredArea)
+          : true);
 
   if (!hasAccess) {
     return (

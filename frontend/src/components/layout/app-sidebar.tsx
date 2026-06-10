@@ -33,6 +33,7 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   area?: string;
+  adminOnly?: boolean;
 }
 
 interface NavGroup {
@@ -47,11 +48,7 @@ const dashboardItem: NavItem = {
   area: "dashboard",
 };
 
-interface NavGroupDef extends NavGroup {
-  adminOnly?: boolean;
-}
-
-const groups: NavGroupDef[] = [
+const groups: NavGroup[] = [
   {
     label: "Indicadores",
     items: [
@@ -94,17 +91,17 @@ const groups: NavGroupDef[] = [
   },
   {
     label: "Administração",
-    adminOnly: true,
     items: [
-      { href: "/admin", label: "Painel Admin", icon: LayoutDashboard },
-      { href: "/admin/users", label: "Usuários", icon: Shield },
-      { href: "/admin/groups", label: "Grupos", icon: Users },
+      { href: "/admin", label: "Painel Admin", icon: LayoutDashboard, adminOnly: true },
+      { href: "/admin/users", label: "Usuários", icon: Shield, adminOnly: true },
+      { href: "/admin/groups", label: "Grupos", icon: Users, area: "gestao_grupos" },
     ],
   },
 ];
 
 function canAccess(item: NavItem, isAdmin: boolean, areas: string[]): boolean {
   if (isAdmin) return true;
+  if (item.adminOnly) return false;
   if (!item.area) return true;
   return areas.includes(item.area);
 }
@@ -231,7 +228,6 @@ export function AppSidebar() {
           <div className="space-y-1">{renderItem(dashboardItem)}</div>
         )}
         {groups
-          .filter((g) => !g.adminOnly || user?.is_admin)
           .map((group) => {
             const visibleItems = group.items.filter((it) =>
               canAccess(it, !!user?.is_admin, user?.areas ?? []),

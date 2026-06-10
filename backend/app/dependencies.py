@@ -37,6 +37,23 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_group_manager(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> User:
+    """Permite admin ou quem possui a área 'gestao_grupos'. Retorna o User."""
+    if user.is_admin:
+        return user
+    from app.services import user_group_service
+
+    if "gestao_grupos" not in user_group_service.get_user_areas(db, user):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para gerenciar grupos",
+        )
+    return user
+
+
 def require_area(area: str):
     """Factory de dependency que valida acesso a uma área."""
 

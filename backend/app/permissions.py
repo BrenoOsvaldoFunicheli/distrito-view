@@ -9,6 +9,7 @@ AREAS: tuple[str, ...] = (
     "farol",
     "capacidade",
     "gantt",
+    "gestao_grupos",
 )
 
 AREA_LABELS: dict[str, str] = {
@@ -20,6 +21,7 @@ AREA_LABELS: dict[str, str] = {
     "farol": "Farol",
     "capacidade": "Capacidade",
     "gantt": "Gantt Projetos",
+    "gestao_grupos": "Gestão de Grupos",
 }
 
 DEFAULT_GROUP_NAME = "Acesso total"

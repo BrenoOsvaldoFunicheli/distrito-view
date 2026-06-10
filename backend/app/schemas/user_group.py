@@ -30,6 +30,16 @@ class UserGroupResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class GroupMemberCandidate(BaseModel):
+    """Versão mínima de usuário para seleção de membros (sem dados sensíveis)."""
+
+    id: int
+    email: str
+    name: str | None
+
+    model_config = {"from_attributes": True}
+
+
 class AreaInfo(BaseModel):
     key: str
     label: str
