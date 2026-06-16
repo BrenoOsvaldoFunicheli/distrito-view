@@ -82,6 +82,11 @@ class FarolBoardColumn(BaseModel):
     id: int
     name: str
     subtitle: str | None = None
+    # Agrupamento por cliente (usado no scope "hierarchical").
+    client_id: int | None = None
+    client_name: str | None = None
+    # True quando a coluna é o resumo agregado do cliente (read-only).
+    is_client_summary: bool = False
 
 
 class FarolBoardCell(BaseModel):

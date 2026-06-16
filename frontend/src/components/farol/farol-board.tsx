@@ -6,6 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { useFarolBoard } from "@/hooks/use-farol";
 import type {
   FarolBoardCell,
+  FarolBoardColumn,
   FarolColor,
   FarolCriterion,
   FarolGroup,
@@ -71,13 +72,42 @@ export function FarolBoardTable({ week, scope }: FarolBoardTableProps) {
 
   const sections = buildSections(data.groups, data.criteria);
 
-  const columnLink = (id: number) =>
-    scope === "client" ? `/clients/${id}` : `/portfolio`;
+  const isHierarchical = scope === "hierarchical";
+  // Agrupa colunas contíguas por cliente (scope hierarchical).
+  const clientGroups = isHierarchical ? buildClientGroups(data.columns) : [];
+
+  const columnLink = (col: FarolBoardColumn) => {
+    if (scope === "client") return `/clients/${col.id}`;
+    if (isHierarchical && col.client_id != null)
+      return `/clients/${col.client_id}`;
+    return `/portfolio`;
+  };
 
   return (
     <div className="overflow-x-auto rounded-lg border bg-card">
       <table className="w-full border-collapse text-sm">
         <thead>
+          {isHierarchical && (
+            <tr className="bg-muted/60">
+              <th className="sticky left-0 z-10 bg-muted/60 border-b border-r px-3 py-2 text-left text-xs font-semibold uppercase">
+                Cliente
+              </th>
+              {clientGroups.map((g) => (
+                <th
+                  key={g.clientId}
+                  colSpan={g.span}
+                  className="border-b border-l px-2 py-2 text-xs font-semibold whitespace-nowrap text-center"
+                >
+                  <Link
+                    href={`/clients/${g.clientId}`}
+                    className="hover:underline"
+                  >
+                    {g.clientName}
+                  </Link>
+                </th>
+              ))}
+            </tr>
+          )}
           <tr className="bg-muted/40">
             <th className="sticky left-0 z-10 bg-muted/40 border-b border-r px-3 py-2 text-left text-xs font-semibold uppercase">
               Critério
@@ -85,15 +115,15 @@ export function FarolBoardTable({ week, scope }: FarolBoardTableProps) {
             {data.columns.map((col) => (
               <th
                 key={col.id}
-                className="border-b px-2 py-2 text-xs font-semibold whitespace-nowrap"
+                className={cn(
+                  "border-b border-l px-2 py-2 text-xs font-semibold whitespace-nowrap",
+                  col.is_client_summary && "bg-muted/60 italic",
+                )}
               >
-                <Link
-                  href={columnLink(col.id)}
-                  className="hover:underline"
-                >
-                  {col.name}
+                <Link href={columnLink(col)} className="hover:underline">
+                  {col.is_client_summary ? "Resumo" : col.name}
                 </Link>
-                {col.subtitle && (
+                {!isHierarchical && col.subtitle && (
                   <div className="text-[10px] font-normal text-muted-foreground normal-case">
                     {col.subtitle}
                   </div>
@@ -141,6 +171,7 @@ export function FarolBoardTable({ week, scope }: FarolBoardTableProps) {
                           key={col.id}
                           className={cn(
                             "border-l p-0 text-center align-middle",
+                            col.is_client_summary && "border-l-2 border-l-foreground/20",
                             COLOR_BG[color],
                           )}
                         >
@@ -166,11 +197,24 @@ export function FarolBoardTable({ week, scope }: FarolBoardTableProps) {
                           `${criterion.id}:${col.id}`,
                         );
                         if (!cell)
-                          return <td key={col.id} className="border-l" />;
+                          return (
+                            <td
+                              key={col.id}
+                              className={cn(
+                                "border-l",
+                                col.is_client_summary &&
+                                  "border-l-2 border-l-foreground/20",
+                              )}
+                            />
+                          );
                         return (
                           <td
                             key={col.id}
-                            className="border-l p-0 text-center align-middle"
+                            className={cn(
+                              "border-l p-0 text-center align-middle",
+                              col.is_client_summary &&
+                                "border-l-2 border-l-foreground/20",
+                            )}
                           >
                             <FarolCell
                               criterion={criterion}
@@ -230,6 +274,31 @@ function computeGroupColor(
   if (avg >= 2.34) return "red";
   if (avg >= 1.67) return "yellow";
   return "green";
+}
+
+interface ClientGroup {
+  clientId: number;
+  clientName: string;
+  span: number;
+}
+
+/** Agrupa colunas contíguas pelo client_id (scope hierarchical). */
+function buildClientGroups(columns: FarolBoardColumn[]): ClientGroup[] {
+  const groups: ClientGroup[] = [];
+  for (const col of columns) {
+    const clientId = col.client_id ?? col.id;
+    const last = groups[groups.length - 1];
+    if (last && last.clientId === clientId) {
+      last.span += 1;
+    } else {
+      groups.push({
+        clientId,
+        clientName: col.client_name ?? col.name,
+        span: 1,
+      });
+    }
+  }
+  return groups;
 }
 
 function buildSections(

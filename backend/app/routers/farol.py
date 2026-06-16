@@ -26,7 +26,9 @@ router = APIRouter(prefix="/farol", tags=["farol"])
 @router.get("/board", response_model=FarolBoardResponse)
 def get_board(
     week: date | None = Query(default=None),
-    scope: str = Query(default="client", pattern="^(client|project)$"),
+    scope: str = Query(
+        default="client", pattern="^(client|project|hierarchical)$"
+    ),
     db: Session = Depends(get_db),
 ):
     return farol_service.get_board(db, week, scope)

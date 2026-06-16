@@ -306,12 +306,15 @@ export interface FarolGroup {
   updated_at: string;
 }
 
-export type FarolScope = "client" | "project";
+export type FarolScope = "client" | "project" | "hierarchical";
 
 export interface FarolBoardColumn {
   id: number;
   name: string;
   subtitle: string | null;
+  client_id?: number | null;
+  client_name?: string | null;
+  is_client_summary?: boolean;
 }
 
 export interface FarolBoardCell {
