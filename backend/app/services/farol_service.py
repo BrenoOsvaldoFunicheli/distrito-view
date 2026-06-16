@@ -524,9 +524,11 @@ def get_board(
         color_by_cell = {
             (c["criterion_id"], c["column_id"]): c["color"] for c in cells
         }
+        # Resumo do cliente preenche somente a linha "Geral" (critério macro):
+        # média dos Gerais dos projetos. Demais critérios ficam vazios.
         for client_id, summary_id in client_summary_ids.items():
             project_cols = client_project_columns.get(client_id, [])
-            for criterion in criteria:
+            for criterion in macro_criteria:
                 color = _average_colors(
                     color_by_cell.get((criterion.id, pid))
                     for pid in project_cols
