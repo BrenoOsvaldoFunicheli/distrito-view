@@ -325,10 +325,6 @@ def get_board(
     # Carrega entidades de coluna conforme scope.
     clients_by_id: dict[int, Client] = {}
     columns: list[dict] = []  # id, name, subtitle (cliente do projeto, etc)
-    # scope hierarchical: ids das colunas-resumo de cada cliente.
-    client_summary_ids: dict[int, int] = {}
-    # scope hierarchical: ids das colunas de projeto agrupadas por cliente.
-    client_project_columns: dict[int, list[int]] = {}
 
     # Para o cálculo de Alocação (calculated_allocation): cor do contrato pai.
     project_to_client: dict[int, Client] = {}
@@ -405,25 +401,13 @@ def get_board(
                 p.contract.client_id, []
             ).append(p)
 
+        # Sem coluna-resumo na tabela: apenas os projetos, agrupados por
+        # cliente (o cabeçalho do cliente é montado no front via client_id).
+        # O Geral agregado do cliente é exposto à parte em get_client_summary.
         for c in clients:
             clients_by_id[c.id] = c
-            summary_id = c.id + CLIENT_SUMMARY_ID_OFFSET
-            client_summary_ids[c.id] = summary_id
-            client_project_columns[c.id] = []
-            # Coluna-resumo do cliente (agregado, read-only).
-            columns.append(
-                {
-                    "id": summary_id,
-                    "name": c.name,
-                    "subtitle": None,
-                    "client_id": c.id,
-                    "client_name": c.name,
-                    "is_client_summary": True,
-                }
-            )
             for p in projects_by_client.get(c.id, []):
                 project_to_client[p.id] = c
-                client_project_columns[c.id].append(p.id)
                 columns.append(
                     {
                         "id": p.id,
@@ -450,10 +434,6 @@ def get_board(
         values = values_query.all()
         values_map = {(v.criterion_id, v.project_id): v for v in values}
 
-    # No scope hierarchical, as colunas-resumo de cliente não recebem valores
-    # diretos: são calculadas como média dos projetos depois.
-    summary_id_set = set(client_summary_ids.values())
-
     cells: list[dict] = []
     non_macro_cells: dict[tuple[int, int], str] = {}
     macro_criteria: list[FarolCriterion] = []
@@ -464,8 +444,6 @@ def get_board(
             continue
         for col in columns:
             col_id = col["id"]
-            if col_id in summary_id_set:
-                continue  # resumo do cliente é agregado adiante
             if criterion.kind == "calculated_allocation":
                 if scope == "client":
                     client = clients_by_id[col_id]
@@ -501,8 +479,6 @@ def get_board(
 
     for criterion in macro_criteria:
         for col in columns:
-            if col["id"] in summary_id_set:
-                continue  # resumo do cliente é agregado adiante
             color = _compute_macro_color(
                 criterion, col["id"], non_macro_cells
             )
@@ -517,33 +493,6 @@ def get_board(
                 }
             )
 
-    # scope hierarchical: célula-resumo do cliente = média (por critério) das
-    # células dos projetos ativos daquele cliente. Vale para todos os critérios,
-    # incluindo o macro "Geral" (média dos Gerais dos projetos).
-    if scope == "hierarchical":
-        color_by_cell = {
-            (c["criterion_id"], c["column_id"]): c["color"] for c in cells
-        }
-        # Resumo do cliente preenche somente a linha "Geral" (critério macro):
-        # média dos Gerais dos projetos. Demais critérios ficam vazios.
-        for client_id, summary_id in client_summary_ids.items():
-            project_cols = client_project_columns.get(client_id, [])
-            for criterion in macro_criteria:
-                color = _average_colors(
-                    color_by_cell.get((criterion.id, pid))
-                    for pid in project_cols
-                )
-                cells.append(
-                    {
-                        "criterion_id": criterion.id,
-                        "column_id": summary_id,
-                        "color": color,
-                        "text_value": None,
-                        "notes": None,
-                        "computed": True,
-                    }
-                )
-
     return {
         "week_start": week_start,
         "scope": scope,
@@ -551,6 +500,67 @@ def get_board(
         "criteria": criteria,
         "columns": columns,
         "cells": cells,
+    }
+
+
+def get_client_summary(
+    db: Session, client_id: int, week: date | None = None
+) -> dict:
+    """Farol Geral agregado de um cliente para a semana.
+
+    Cor = média dos 'Geral' (critérios macro) dos projetos ativos do cliente.
+    Devolve também a cor por projeto para detalhamento na página do cliente.
+    """
+    week_start = _normalize_week(week)
+
+    projects = (
+        db.query(Project)
+        .options(joinedload(Project.contract))
+        .join(Contract, Project.contract_id == Contract.id)
+        .filter(Contract.client_id == client_id, Project.status == "active")
+        .order_by(Project.name)
+        .all()
+    )
+
+    criteria = list_criteria(db)
+    macro_criteria = [c for c in criteria if c.kind == "macro"]
+    non_macro = [c for c in criteria if c.kind != "macro"]
+
+    project_ids = [p.id for p in projects]
+    values = []
+    if project_ids:
+        values = (
+            db.query(FarolValue)
+            .filter(
+                FarolValue.week_start == week_start,
+                FarolValue.project_id.in_(project_ids),
+            )
+            .all()
+        )
+    values_map = {(v.criterion_id, v.project_id): v for v in values}
+
+    # Cor "Geral" (macro) de cada projeto.
+    per_project: list[dict] = []
+    geral_colors: list[str] = []
+    for p in projects:
+        non_macro_cells: dict[tuple[int, int], str] = {}
+        for crit in non_macro:
+            value = values_map.get((crit.id, p.id))
+            non_macro_cells[(crit.id, p.id)] = value.color if value else "none"
+        # Combina todos os macros (normalmente só "Geral").
+        macro_colors = [
+            _compute_macro_color(crit, p.id, non_macro_cells)
+            for crit in macro_criteria
+        ]
+        geral = _average_colors(macro_colors)
+        geral_colors.append(geral)
+        per_project.append({"id": p.id, "name": p.name, "color": geral})
+
+    return {
+        "client_id": client_id,
+        "week_start": week_start,
+        "color": _average_colors(geral_colors),
+        "projects": per_project,
     }
 
 

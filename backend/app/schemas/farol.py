@@ -107,6 +107,19 @@ class FarolBoardResponse(BaseModel):
     cells: list[FarolBoardCell]
 
 
+class FarolClientSummaryProject(BaseModel):
+    id: int
+    name: str
+    color: str
+
+
+class FarolClientSummaryResponse(BaseModel):
+    client_id: int
+    week_start: date
+    color: str
+    projects: list[FarolClientSummaryProject]
+
+
 class FarolHistoryEntry(BaseModel):
     week_start: date
     target_kind: str

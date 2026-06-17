@@ -10,6 +10,23 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { EditClientDialog } from "@/components/clients/edit-client-dialog";
 import { useClient } from "@/hooks/use-clients";
 import { useContracts } from "@/hooks/use-contracts";
+import { useFarolClientSummary } from "@/hooks/use-farol";
+import type { FarolColor } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+const FAROL_DOT: Record<FarolColor, string> = {
+  red: "bg-red-500",
+  yellow: "bg-yellow-400",
+  green: "bg-green-500",
+  none: "bg-muted-foreground/30",
+};
+
+const FAROL_LABEL: Record<FarolColor, string> = {
+  red: "Crítico",
+  yellow: "Atenção",
+  green: "Saudável",
+  none: "Sem dados",
+};
 
 export default function ClientDetailPage({
   params,
@@ -20,6 +37,7 @@ export default function ClientDetailPage({
   const clientId = parseInt(id);
   const { data: client, mutate: mutateClient } = useClient(clientId);
   const { data: contracts } = useContracts(undefined, clientId);
+  const { data: farol } = useFarolClientSummary(clientId);
   const [editing, setEditing] = useState(false);
 
   if (!client) {
@@ -87,6 +105,56 @@ export default function ClientDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Farol Geral</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!farol ? (
+            <div className="h-6 animate-pulse rounded bg-muted" />
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "inline-block h-5 w-5 rounded-full",
+                    FAROL_DOT[farol.color],
+                  )}
+                />
+                <span className="text-lg font-semibold">
+                  {FAROL_LABEL[farol.color]}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  (média dos projetos ativos)
+                </span>
+              </div>
+              {farol.projects.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum projeto ativo para este cliente.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {farol.projects.map((p) => (
+                    <span
+                      key={p.id}
+                      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs"
+                    >
+                      <span
+                        className={cn(
+                          "inline-block h-2.5 w-2.5 rounded-full",
+                          FAROL_DOT[p.color],
+                        )}
+                      />
+                      {p.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

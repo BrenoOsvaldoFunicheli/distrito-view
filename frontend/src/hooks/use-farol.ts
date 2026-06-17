@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { api } from "@/lib/api";
 import type {
   FarolBoard,
+  FarolClientSummary,
   FarolCriterion,
   FarolGroup,
   FarolHistoryEntry,
@@ -17,6 +18,21 @@ export function useFarolBoard(week?: string, scope: FarolScope = "client") {
   params.set("scope", scope);
   return useSWR<FarolBoard>(
     `/api/v1/farol/board?${params.toString()}`,
+    api.get,
+  );
+}
+
+export function useFarolClientSummary(
+  clientId: number | null,
+  week?: string,
+) {
+  const params = new URLSearchParams();
+  if (week) params.set("week", week);
+  const qs = params.toString();
+  return useSWR<FarolClientSummary>(
+    clientId
+      ? `/api/v1/farol/client-summary/${clientId}${qs ? `?${qs}` : ""}`
+      : null,
     api.get,
   );
 }

@@ -335,6 +335,19 @@ export interface FarolBoard {
   cells: FarolBoardCell[];
 }
 
+export interface FarolClientSummaryProject {
+  id: number;
+  name: string;
+  color: FarolColor;
+}
+
+export interface FarolClientSummary {
+  client_id: number;
+  week_start: string;
+  color: FarolColor;
+  projects: FarolClientSummaryProject[];
+}
+
 export interface FarolHistoryEntry {
   week_start: string;
   target_kind: "client" | "project";

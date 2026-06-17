@@ -115,13 +115,10 @@ export function FarolBoardTable({ week, scope }: FarolBoardTableProps) {
             {data.columns.map((col) => (
               <th
                 key={col.id}
-                className={cn(
-                  "border-b border-l px-2 py-2 text-xs font-semibold whitespace-nowrap",
-                  col.is_client_summary && "bg-muted/60 italic",
-                )}
+                className="border-b border-l px-2 py-2 text-xs font-semibold whitespace-nowrap"
               >
                 <Link href={columnLink(col)} className="hover:underline">
-                  {col.is_client_summary ? "Resumo" : col.name}
+                  {col.name}
                 </Link>
                 {!isHierarchical && col.subtitle && (
                   <div className="text-[10px] font-normal text-muted-foreground normal-case">
@@ -171,7 +168,6 @@ export function FarolBoardTable({ week, scope }: FarolBoardTableProps) {
                           key={col.id}
                           className={cn(
                             "border-l p-0 text-center align-middle",
-                            col.is_client_summary && "border-l-2 border-l-foreground/20",
                             COLOR_BG[color],
                           )}
                         >
@@ -197,24 +193,11 @@ export function FarolBoardTable({ week, scope }: FarolBoardTableProps) {
                           `${criterion.id}:${col.id}`,
                         );
                         if (!cell)
-                          return (
-                            <td
-                              key={col.id}
-                              className={cn(
-                                "border-l",
-                                col.is_client_summary &&
-                                  "border-l-2 border-l-foreground/20",
-                              )}
-                            />
-                          );
+                          return <td key={col.id} className="border-l" />;
                         return (
                           <td
                             key={col.id}
-                            className={cn(
-                              "border-l p-0 text-center align-middle",
-                              col.is_client_summary &&
-                                "border-l-2 border-l-foreground/20",
-                            )}
+                            className="border-l p-0 text-center align-middle"
                           >
                             <FarolCell
                               criterion={criterion}

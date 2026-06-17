@@ -7,6 +7,7 @@ from app.dependencies import get_db
 from app.schemas.farol import (
     FarolBoardResponse,
     FarolCellUpdate,
+    FarolClientSummaryResponse,
     FarolCriterionCreate,
     FarolCriterionReorderRequest,
     FarolCriterionResponse,
@@ -32,6 +33,18 @@ def get_board(
     db: Session = Depends(get_db),
 ):
     return farol_service.get_board(db, week, scope)
+
+
+@router.get(
+    "/client-summary/{client_id}",
+    response_model=FarolClientSummaryResponse,
+)
+def get_client_summary(
+    client_id: int,
+    week: date | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    return farol_service.get_client_summary(db, client_id, week)
 
 
 @router.get("/criteria", response_model=list[FarolCriterionResponse])
